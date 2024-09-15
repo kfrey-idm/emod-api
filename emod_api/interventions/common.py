@@ -386,7 +386,10 @@ def ScheduledCampaignEvent(
         node_ids = Node_Ids
         event.Nodeset_Config = utils.do_nodes(camp.schema_path, node_ids)
 
-    coordinator.Intervention_Config = MultiInterventionDistributor( camp, Intervention_List ) 
+    if len(Intervention_List)>1:
+        coordinator.Intervention_Config = MultiInterventionDistributor( camp, Intervention_List ) 
+    else:
+        coordinator.Intervention_Config = Intervention_List[0]
     prs = utils._convert_prs( Property_Restrictions )
     if len(prs)>0 and type(prs[0]) is dict:
         coordinator.Property_Restrictions_Within_Node = prs

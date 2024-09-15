@@ -96,9 +96,9 @@ class MigrationTest(CampaignTest):
 
         intervention_config = event_coordinator_config.get("Intervention_Config")
         self.assertIsNone(intervention_config.get("Actual_IndividualIntervention_Config"))
-        self.assertEqual(intervention_config["class"], "MultiInterventionDistributor")
+        #self.assertEqual(intervention_config["class"], "MultiInterventionDistributor")
 
-        intervention_list_zero = intervention_config.get("Intervention_List")[0]
+        intervention_list_zero = intervention_config
         self.assertEqual(intervention_list_zero["class"], "MigrateIndividuals")
         self.assertEqual(intervention_list_zero["Duration_At_Node_Constant"], 3)
         self.assertEqual(intervention_list_zero["Duration_Before_Leaving_Constant"], 4)

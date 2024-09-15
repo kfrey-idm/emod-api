@@ -14,6 +14,7 @@ pubsub_signals_pubbing = []
 adhocs = []
 event_map = {}
 use_old_adhoc_handling = False
+unsafe = False
 
 def reset():
     del( campaign_dict["Events"][:] )
@@ -113,8 +114,8 @@ def save( filename="campaign.json" ):
         print( "WARNING: Campaign or Report is configured to LISTEN to the following non-campaign events:" )
         for event in set( non_camp_events ):
             print( event )
-            if event in get_adhocs():
-                print( "\nERROR: Report is configured to LISTEN to the following non-existent 'trigger':" )
+            if event in get_adhocs() and not unsafe:
+                print( f"\nERROR: Report is configured to LISTEN to the following non-existent 'trigger': {event}" )
                 raise RuntimeError( "Please fix above error." ) 
     return filename
 

@@ -288,8 +288,8 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
 
         ic = ecc['Intervention_Config']
-        self.assertEqual(ic['class'], 'MultiInterventionDistributor')
-        self.assertTrue(ic['Intervention_List'][0].items() <= intervention_list[0].items())
+        #self.assertEqual(ic['class'], 'MultiInterventionDistributor')
+        self.assertTrue(ic.items() <= intervention_list[0].items())
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
@@ -324,8 +324,8 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
 
         ic = ecc['Intervention_Config']
-        self.assertEqual(ic['class'], 'MultiInterventionDistributor')
-        self.assertTrue(ic['Intervention_List'][0].items() <= intervention_list[0].items())
+        #self.assertEqual(ic['class'], 'MultiInterventionDistributor')
+        self.assertTrue(ic.items() <= intervention_list[0].items())
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
@@ -1028,7 +1028,7 @@ class CommonInterventionTest(CampaignTest):
                 self.assertEqual(ic1['Trigger_Condition_List'], triggers)
             else:
                 event2 = camp_event[1]
-                broadcast_event = event2['Event_Coordinator_Config']['Intervention_Config']['Intervention_List'][0]['Broadcast_Event']
+                broadcast_event = event2['Event_Coordinator_Config']['Intervention_Config']['Broadcast_Event']
                 self.assertEqual(ic1['Trigger_Condition_List'], triggers)
                 self.assertEqual(broadcast_event, "ReceivedTreatment")
 
@@ -1222,7 +1222,7 @@ class CommonInterventionTest(CampaignTest):
             camp_event = json.load(file)['Events'][0]
         print(camp_event)
 
-        intervention = camp_event["Event_Coordinator_Config"]["Intervention_Config"]["Intervention_List"][0]
+        intervention = camp_event["Event_Coordinator_Config"]["Intervention_Config"]
         self.assertEqual(intervention["Daily_Probability"], daily_prob)
         self.assertEqual(intervention["Maximum_Duration"], max_duration)
         self.assertEqual(intervention["Revert"], revert_in_days)
