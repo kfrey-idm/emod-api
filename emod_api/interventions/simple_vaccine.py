@@ -21,13 +21,13 @@ def new_intervention(timestep, v_type=vaccine_type, efficacy=initial_effect, sv_
     This is mostly an example but also potentially useful. With this you get a Vaccine with working defaults but
     2 configurables: type and efficacy. The duration is fixet at box. You of course must specify the timestep and you
     can add a vaccine name which is mostly useful if you're managing a duplicate policy.
-
     """
+
     intervention = s2c.get_class_with_defaults("Vaccine", schema_path)
     efficacy_profile = "WaningEffectBox"
     waning = s2c.get_class_with_defaults(efficacy_profile, schema_path)
-    if cost_to_consumer:
-        intervention.Cost_To_Consumer = cost_to_consumer
+    waning.Initial_Effect = efficacy
+    waning.Box_Duration = waning_duration
 
     if "Acquire" in v_type:
         intervention.Acquire_Config = waning
@@ -39,6 +39,9 @@ def new_intervention(timestep, v_type=vaccine_type, efficacy=initial_effect, sv_
     # Third, do the actual settings
     # intervention.Vaccine_Type = v_type
     intervention.Intervention_Name = sv_name
+    if cost_to_consumer:
+        intervention.Cost_To_Consumer = cost_to_consumer
+
     if d_a_d is not None:
         intervention.Dont_Allow_Duplicates = d_a_d
     if e_i_r:
@@ -47,8 +50,6 @@ def new_intervention(timestep, v_type=vaccine_type, efficacy=initial_effect, sv_
         # depends-on parameter for EIR.
         intervention.Enable_Intervention_Replacement = e_i_r
 
-    waning.Initial_Effect = efficacy
-    waning.Box_Duration = waning_duration
 
     if intervention_only:
         return intervention

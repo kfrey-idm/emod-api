@@ -1320,6 +1320,116 @@ class CommonInterventionTest(CampaignTest):
             self.assertEqual(intervention["Target_Property_Value"], "High")
             self.assertEqual(intervention["class"], "PropertyValueChanger")
 
+    def test_change_individual_property(self):
+        # test that this works with triggered events
+        number_repetitions=3
+        timesteps_between_repetitions=10
+        camp_filename = 'change_prop_scheduled.json'
+        delete_existing_file(camp_filename)
+        new_ip_key = "Risk"
+        new_ip_value = "High"
+        start_day = 10
+        node_ids = [1,2]
+        daily_prob = 0.8
+        max_duration = 10
+        revert_in_days = 20
+        ip_restrictions = {'Risk': 'Low'}
+        coverage = 0.7
+        target_age_min = 5
+        target_age_max = 30
+        target_sex = "Male"
+        target_residents_only = True
+        delay=2
+        listening_duration=5
+        blackout=False
+        check_at_trigger = True
+        triggers = ['GP_EVENT_000', 'GP_EVENT_001']
+
+        for delay in [{"Delay_Period_Exponential": 5}, False]:
+            camp.reset()
+            if delay:
+                common.change_individual_property(camp, trigger_condition_list=triggers, target_property_name=new_ip_key, target_property_value=new_ip_value, revert=revert_in_days,
+                                                            start_day=start_day, ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
+                                                            target_sex=target_sex, target_residents_only=target_residents_only, triggered_campaign_delay=delay, listening_duration=listening_duration,
+                                                            blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger, max_duration=max_duration, daily_prob=daily_prob)
+            else:
+                common.change_individual_property(camp, trigger_condition_list=triggers, target_property_name=new_ip_key, target_property_value=new_ip_value, revert=revert_in_days,
+                                                            start_day=start_day, ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
+                                                            target_sex=target_sex, target_residents_only=target_residents_only, listening_duration=listening_duration,
+                                                            blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger, max_duration=max_duration, daily_prob=daily_prob)
+
+            camp.save(camp_filename)
+            with open(camp_filename, 'r') as file:
+                event = json.load(file)['Events'][0]
+
+
+            self.assertEqual(event['Start_Day'], start_day)
+            ic = event["Event_Coordinator_Config"]["Intervention_Config"]
+            if delay:
+                intervention = ic["Actual_IndividualIntervention_Config"]["Actual_IndividualIntervention_Configs"][0]
+            else:
+                intervention = ic["Actual_IndividualIntervention_Config"]
+            self.assertEqual(ic["Demographic_Coverage"], coverage)
+            self.assertEqual(ic["Trigger_Condition_List"], triggers)
+            if delay:
+                self.assertEqual(intervention["class"], "PropertyValueChanger")
+                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"], "EXPONENTIAL_DISTRIBUTION")
+                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Exponential"], 5)
+
+            else:
+                self.assertEqual(intervention["class"], "PropertyValueChanger")
+            self.assertEqual(intervention["Maximum_Duration"], max_duration)
+            self.assertEqual(ic["Property_Restrictions"], ["Risk:Low"])
+            self.assertEqual(ic["Target_Age_Max"], target_age_max)
+            self.assertEqual(ic["Target_Age_Min"], target_age_min)
+            self.assertEqual(ic["Target_Gender"], target_sex)
+            self.assertEqual(ic["Target_Residents_Only"], target_residents_only)
+
+            # testing specifically for property value changer intervention
+            self.assertEqual(intervention["Daily_Probability"], daily_prob)
+            self.assertEqual(intervention["Revert"], revert_in_days)
+            self.assertEqual(intervention["Target_Property_Key"], "Risk")
+            self.assertEqual(intervention["Target_Property_Value"], "High")
+            self.assertEqual(intervention["class"], "PropertyValueChanger")
+
+        # testing that it can produce scheduled intervention
+        camp.reset()
+        change_individual_property(camp, target_property_name=new_ip_key, target_property_value=new_ip_value, start_day=start_day, 
+                                                            node_ids=node_ids, daily_prob=daily_prob, max_duration=max_duration, number_repetitions=number_repetitions,
+                                                            timesteps_between_reps=timesteps_between_repetitions, revert=revert_in_days, ip_restrictions=ip_restrictions, 
+                                                            coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max, target_sex=target_sex, target_residents_only=target_residents_only)
+        
+        camp.save(camp_filename)
+        with open(camp_filename, 'r') as file:
+            camp_event = json.load(file)['Events'][0]
+        print(camp_event)
+
+        intervention = camp_event["Event_Coordinator_Config"]["Intervention_Config"]
+        self.assertEqual(intervention["Daily_Probability"], daily_prob)
+        self.assertEqual(intervention["Maximum_Duration"], max_duration)
+        self.assertEqual(intervention["Revert"], revert_in_days)
+        self.assertEqual(intervention["Target_Property_Key"], "Risk")
+        self.assertEqual(intervention["Target_Property_Value"], "High")
+        self.assertEqual(intervention["class"], "PropertyValueChanger")
+        self.assertEqual(camp_event["Start_Day"], start_day)
+
+        ec = camp_event["Event_Coordinator_Config"]
+        self.assertEqual(ec["Demographic_Coverage"], coverage)
+        self.assertEqual(ec["Number_Repetitions"], number_repetitions)
+        self.assertEqual(ec["Property_Restrictions"], ["Risk:Low"])
+        self.assertEqual(ec["Target_Age_Max"], target_age_max)
+        self.assertEqual(ec["Target_Age_Min"], target_age_min)
+        self.assertEqual(ec["Target_Gender"], target_sex)
+        self.assertEqual(ec["Target_Residents_Only"], target_residents_only)
+        self.assertEqual(ec["Timesteps_Between_Repetitions"], timesteps_between_repetitions)
+        self.assertEqual(camp_event['Nodeset_Config'], {
+                "Node_List": [
+                    1,
+                    2
+                ],
+                "class": "NodeSetNodeList"
+            })  
+
 class CommonInterventionTestMalaria(CommonInterventionTest):
     def setUp(self):
         super(CommonInterventionTestMalaria, self).setUp()

@@ -15,6 +15,7 @@ adhocs = []
 event_map = {}
 use_old_adhoc_handling = False
 unsafe = False
+implicits = list()
 
 def reset():
     del( campaign_dict["Events"][:] )
@@ -28,6 +29,7 @@ def reset():
     event_map = {}
     from emod_api import schema_to_class as s2c
     s2c.schema_cache = None
+    del( implicits[:] )
 
 def set_schema( schema_path_in ):
     """

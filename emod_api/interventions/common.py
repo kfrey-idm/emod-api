@@ -1,3 +1,4 @@
+from tracemalloc import start
 import emod_api.interventions.utils as utils
 from emod_api import schema_to_class as s2c
 
@@ -923,12 +924,15 @@ def change_individual_property(camp,
 
     if trigger_condition_list:
         return change_individual_property_triggered( camp,
+                                                     start_day=start_day,
+                                                     coverage=coverage,
+                                                     max_duration=max_duration,
+                                                     daily_prob=daily_prob,
                                                      triggers=trigger_condition_list,
                                                      new_ip_key=target_property_name,
                                                      new_ip_value=target_property_value,
                                                      revert_in_days=revert,
                                                      ip_restrictions=ip_restrictions,
-                                                     coverage=1.0,
                                                      target_age_min=target_age_min,
                                                      target_age_max=target_age_max,
                                                      target_sex=target_sex,
@@ -936,16 +940,23 @@ def change_individual_property(camp,
                                                      delay=triggered_campaign_delay,
                                                      listening_duration=listening_duration,
                                                      blackout=blackout_flag,
-                                                     check_at_trigger=check_eligibility_at_trigger)
+                                                     check_at_trigger=check_eligibility_at_trigger,
+                                                     node_ids=node_ids)
     else:
         return change_individual_property_scheduled( camp,
+                                                     start_day=start_day,
+                                                     coverage=coverage,
+                                                     max_duration=max_duration,
+                                                     daily_prob=daily_prob,
+                                                     number_repetitions=number_repetitions,
+                                                     timesteps_between_reps=timesteps_between_reps,
                                                      new_ip_key=target_property_name,
                                                      new_ip_value=target_property_value,
                                                      revert_in_days=revert,
                                                      ip_restrictions=ip_restrictions,
-                                                     coverage=1.0,
                                                      target_residents_only=target_residents_only,
                                                      target_age_min=target_age_min,
                                                      target_age_max=target_age_max,
-                                                     target_sex=target_sex
+                                                     target_sex=target_sex,
+                                                     node_ids=node_ids
                                                    )

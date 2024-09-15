@@ -3,16 +3,65 @@ import os
 import unittest
 import shutil
 import json
-
+import pprint
 from emod_api.interventions import outbreak as ob
 from emod_api import campaign as camp
 
 from camp_test import CampaignTest, delete_existing_file
-
+import outbreak_arguments as testcase
 current_directory = os.path.dirname(os.path.realpath(__file__))
 
 
 class OutbreakTest(CampaignTest):
+    def test_seed_simple(self):
+        testcase.Property_Restrictions = [{"Place": "Rural"}]
+        testcase.Filename = "outbreak_individual_seed_simple"
+        event = self.outbreak_seed(testcase)
+        self.assertEqual(event['Event_Coordinator_Config']['Property_Restrictions'], ["Place:Rural"] )
+
+    def test_seed_complex(self):
+        testcase.Property_Restrictions = [{"Place": "Rural"}, {"Risk": "Medium"} ]
+        testcase.Filename = "outbreak_individual_seed_complex"
+        event = self.outbreak_seed(testcase)
+        self.assertEqual(event['Event_Coordinator_Config']['Property_Restrictions_Within_Node'], testcase.Property_Restrictions )
+
+    def outbreak_seed(self, case):
+        event = ob.seed(camp=camp, 
+                        Start_Day= case.Start_Day, 
+                        Coverage= case.Demographic_Coverage, 
+                        Target_Props= case.Property_Restrictions, 
+                        Node_Ids= case.Node_Ids, 
+                        Tot_Rep= case.Number_Repetitions, 
+                        Rep_Interval= case.Timesteps_Between_Repetitions, 
+                        Target_Age_Min= case.Target_Age_Min,
+                        Target_Age_Max= case.Target_Age_Max,
+                        Target_Gender= case.Target_Gender,
+                        Honor_Immunity= case.Honor_Immunity
+                        )
+
+        #camp.add() Handled inside the funtion.
+        camp_filename = case.Filename
+        delete_existing_file(camp_filename)
+        camp.save(camp_filename)
+        self.assertTrue(os.path.isfile(camp_filename))
+        with open(camp_filename, 'r') as file:
+            campaign = json.load(file)
+            camp_event = campaign["Events"]
+        
+        self.assertEqual(len(camp_event), 1)
+        event = camp_event[0]
+        pprint.pprint(event)
+        self.assertEqual(event['Start_Day'], case.Start_Day)
+        self.assertEqual(event['Event_Coordinator_Config']['Demographic_Coverage'], case.Demographic_Coverage)
+        self.assertEqual(event['Event_Coordinator_Config']['Target_Age_Max'], case.Target_Age_Max)
+        self.assertEqual(event['Event_Coordinator_Config']['Target_Age_Min'], case.Target_Age_Min)
+        self.assertTrue(self.rec_check_camp(campaign) is None)
+        ic = event['Event_Coordinator_Config']['Intervention_Config']
+        self.assertEqual(ic['class'], 'OutbreakIndividual')
+        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+        camp.reset()
+        return event
+
     def test_as_file(self):
         camp_filename = 'outbreak_as_file.json'
         delete_existing_file(camp_filename)
@@ -30,6 +79,7 @@ class OutbreakTest(CampaignTest):
         self.assertEqual(ic['class'], 'Outbreak')
         self.assertEqual(ic['Number_Cases_Per_Node'], cases)
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+        camp.reset()
 
     def test_as_event(self):
         timestep = 30
@@ -59,6 +109,7 @@ class OutbreakTest(CampaignTest):
 
         self.assertTrue(self.rec_check_camp(campaign) is None)
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+        camp.reset()
 
     def test_seed_by_coverage(self):
         timestep = 10
@@ -77,6 +128,30 @@ class OutbreakTest(CampaignTest):
         event = camp_event[0]
         self.assertEqual(event['Start_Day'], timestep )
         self.assertEqual(event['Event_Name'], event_name)
+        self.assertEqual(event['Event_Coordinator_Config']['Demographic_Coverage'], coverage)
+        self.assertTrue(self.rec_check_camp(campaign) is None)
+
+        ic = event['Event_Coordinator_Config']['Intervention_Config']
+        self.assertEqual(ic['class'], 'OutbreakIndividual')
+        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+        camp.reset()
+
+    def test_seed(self):
+        camp.set_schema( camp.schema_path )
+        timestep = 10
+        coverage = 0.05
+        ob.seed(camp=camp, Start_Day=timestep, Coverage=coverage)
+        event_name = 'individual_outbreak'
+        camp_filename = 'outbreak_individual.json'
+        delete_existing_file(camp_filename)
+        camp.save(camp_filename)
+        self.assertTrue(os.path.isfile(camp_filename))
+        with open(camp_filename, 'r') as file:
+            campaign = json.load(file)
+            camp_event = campaign["Events"]
+        self.assertEqual(len(camp_event), 1)
+        event = camp_event[0]
+        self.assertEqual(event['Start_Day'], timestep )
         self.assertEqual(event['Event_Coordinator_Config']['Demographic_Coverage'], coverage)
         self.assertTrue(self.rec_check_camp(campaign) is None)
 
@@ -130,6 +205,7 @@ class OutbreakTest(CampaignTest):
         self.assertEqual(outbreak_default, intervention_only_defaults)
         shutil.move(outbreak_file, os.path.join(self.output_folder, intervention_only_file))
         shutil.move(intervention_only_file, os.path.join(self.output_folder, intervention_only_file))
+        camp.reset()
 
 class MalariaOutbreakTest(OutbreakTest):
     @classmethod

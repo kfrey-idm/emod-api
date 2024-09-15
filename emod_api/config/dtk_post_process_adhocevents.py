@@ -13,6 +13,10 @@ def _recursive_json( ref_json, flat_input_json ):
 
 def application( output_path ):
     print( "DTK POST PROC SCRIPT: Convert all GPIO_X labels in output files." )
+    if os.path.exists( "config_xform.json" ) == False:
+        # nothing to be done.
+        return
+
     config_json = json.loads( open( "config_xform.json" ).read() )
     event_map = config_json["parameters"]["Event_Map"]
 

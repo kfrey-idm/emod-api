@@ -466,6 +466,7 @@ class Demographics(BaseInputFile):
     def SetMortalityDistribution(self, distribution: IndividualAttributes.MortalityDistribution = None, node_ids: List[int] = None):
         """
         Set a default mortality distribution for all nodes or per node. Turn on Enable_Natural_Mortality implicitly.
+
         Args:
             distribution: distribution
             node_ids: a list of node_ids
@@ -481,6 +482,72 @@ class Demographics(BaseInputFile):
 
         if self.implicits is not None:
             self.implicits.append(DT._set_mortality_age_gender)
+
+    def SetMortalityOverTimeFromData(self, data_csv, base_year):
+        """
+        Set default mortality rates for all nodes or per node. Turn on mortality configs implicitly.
+
+        Args:
+            data_csv: Path to csv file with the mortality rates by calendar year and age bucket.
+            base_year: The calendar year the sim is treating as the base.
+
+        Returns:
+            None
+        """
+        # Load csv. Convert rate arrays into DTK-compatiable JSON structures.
+        rates = [] # array of arrays, but leave that for a minute
+        df = pd.read_csv( data_csv )
+        header = df.columns
+        year_start = int(header[1]) # someone's going to come along with 1990.5, etc. Sigh.
+        year_end = int(header[-1])
+        if year_end <= year_start:
+            raise ValueError( f"Failed check that {year_end} is greater than {year_start} in csv dataset." )
+        num_years = year_end-year_start+1
+        rel_years = list()
+        for year in range(year_start,year_end):
+            mort_data = list( df[str(year)] )
+            # mort_data is the array of mortality rates (by age bin) for _year_
+            rates.append( mort_data )
+            rel_years.append( year-base_year )
+
+        age_key = None
+        for trykey in df.keys():
+            if trykey.lower().startswith( "age" ):
+                age_key = trykey
+                raw_age_bins = list(df[age_key])
+
+        if age_key is None:
+            raise ValueError( f"Failed to find 'Age_Bin' (or similar) column in the csv dataset. Cannot process." )
+
+        num_age_bins = len(raw_age_bins)
+        age_bins = list()
+        try:
+            for age_bin in raw_age_bins:
+                left_age = float(age_bin.split("-")[0])
+                age_bins.append( left_age )
+        except Exception as ex:
+            raise ValueError( f"Ran into error processing the values in the Age-Bin column. {ex}" )
+
+        num_pop_groups = [ num_age_bins, num_years ]
+        pop_groups = [ rel_years, age_bins ]
+        
+        distrib = IndividualAttributes.MortalityDistribution(
+                result_values = rates,
+                axis_names = ["age","year"],
+                axis_scale_factors = [365,1],
+                axis_units="N/A",
+                num_distribution_axes=len(num_pop_groups),
+                num_population_groups=num_pop_groups,
+                population_groups=pop_groups,
+                result_scale_factor=2.74e-06,
+                result_units="annual deaths per 1000 individuals"
+        )
+
+        self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionMale"] = distrib.to_dict()
+        self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionFemale"] = distrib.to_dict()
+
+        if self.implicits is not None:
+            self.implicits.append(DT._set_mortality_age_gender_year)
 
     def SetAgeDistribution(self, distribution: IndividualAttributes.AgeDistribution, node_ids: List[int] = None):
         """
@@ -662,6 +729,45 @@ class Demographics(BaseInputFile):
     def _SetInfectivityMultiplierByNode( self, node_id_to_multplier ):
         raise ValueError( "Not Yet Implemented." )
 
+    def SetFertilityOverTimeFromParams( self, years_region1, years_region2, start_rate, inflection_rate, end_rate ):
+        """
+        Set fertility rates that vary over time based on a model with two linear regions. Note that fertility rates
+        use GFR units: babies born per 1000 women of child-bearing age annually.
+
+        Args:
+            years_region1: The number of years covered by the first linear region. So if this represents
+                1850 to 1960, years_region1 would be 110.
+            years_region2: The number of years covered by the second linear region. So if this represents
+                1960 to 2020, years_region2 would be 60.
+            start_rate: The fertility rate at t=0.
+            inflection_rate: The fertility rate in the year where the two linear regions meet.
+            end_rate: The fertility rate at the end of the period covered by region1 + region2.
+
+        Returns:
+            rates array (Just in case user wants to do something with them like inspect or plot.)
+        """
+        rates = []
+        if years_region1<0:
+            raise ValueError( "years_region1 can't be negative." )
+        if years_region2<0:
+            raise ValueError( "years_region2 can't be negative." )
+        if start_rate<0:
+            raise ValueError( "start_rate can't be negative." )
+        if inflection_rate<0:
+            raise ValueError( "inflection_rate can't be negative." )
+        if end_rate<0:
+            raise ValueError( "end_rate can't be negative." )
+        for i in range(years_region1):
+            rate = start_rate + (inflection_rate-start_rate)*(i/years_region1)
+            rates.append(rate)
+        for i in range(years_region2):
+            rate = inflection_rate + (end_rate-inflection_rate)*(i/years_region2)
+            rates.append(rate)
+        #  OK, now we put this into the nasty complex fertility structure
+        dist = DT.get_fert_dist_from_rates( rates )
+        self.SetDefaultFromTemplate( dist, DT._set_fertility_age_year )
+        return rates
+
     def infer_natural_mortality(
             self,
             file_male,
@@ -711,8 +817,6 @@ class Demographics(BaseInputFile):
             else:
                 return x_tuple[1]
 
-        import pandas as pd
-        import numpy as np
         df_mort_male = pd.read_csv(file_male, usecols=name_conversion_dict)
         df_mort_male['Sex'] = 'Male'
         df_mort_female = pd.read_csv(file_female, usecols=name_conversion_dict)

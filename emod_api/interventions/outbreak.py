@@ -1,9 +1,54 @@
 from .. import schema_to_class as s2c
 import emod_api.campaign as camp
+import emod_api.interventions.common as comm
 import json
 
 
-def seed_by_coverage(campaign_builder, timestep, coverage=0.01, ignore_immunity=None, intervention_only=False):
+def seed( camp,
+    Start_Day: int,
+    Coverage: float = 0.01,
+    Target_Props = None,
+    Node_Ids = None,
+    Tot_Rep: int = 1,
+    Rep_Interval: int = -1,
+    Target_Age_Min:float =0,
+    Target_Age_Max:float =125,
+    Target_Gender:str = "All",
+    Honor_Immunity:bool =False
+):
+    """
+    Distribute an outbreak (via prevalence increase of existing agents) to individuals based on inclusion criteria.
+
+    Parameters:
+        camp: Central campaign builder object.
+        Start_Day: Simulation timestep when outbreak should occur. Required.
+        Coverage: Fraction of population to reach. Defaults to 1%.
+        Target_Props: Individual Properties to limit the seeding to.
+        Node_Ids: Nodes to target. Optional. Defaults to all.
+        Tot_Rep: Number of times to "re-seed". Optional. Defaults to just once.
+        Rep_Interval: Number of timesteps between re-seeding events. Optional. Use with Rep_Num.
+        Target_Age_Min: Minimum age in years. Optional. Defaults to 0.
+        Target_Age_Max: Maximum age in years. Optional. Defaults to AGE_MAX.
+        Target_Gender: Optional sex-targeting param (Male or Female if you don't want "All").
+        Honor_Immunity: Set to True if you want to infect people regardless of their immunity.
+
+    """
+    intervention = s2c.get_class_with_defaults("OutbreakIndividual", camp.schema_path)
+    if Honor_Immunity is True:
+        intervention.Ignore_Immunity = False
+    event = comm.ScheduledCampaignEvent( camp, Start_Day=Start_Day, Node_Ids=Node_Ids, Number_Repetitions=Tot_Rep, Timesteps_Between_Repetitions=Rep_Interval, Property_Restrictions=Target_Props, Demographic_Coverage=Coverage, Target_Age_Min=Target_Age_Min, Target_Age_Max=Target_Age_Max, Target_Gender= Target_Gender, Intervention_List=[ intervention ] )
+    if "Node_Property_Restrictions" in event.Event_Coordinator_Config:
+        event.Event_Coordinator_Config.pop( "Node_Property_Restrictions" )
+    if Target_Age_Max <= Target_Age_Min:
+        raise ValueError( f"Max age {Target_Age_Max} must be greater than Min Age {Target_Age_Min}." )
+    if Target_Age_Max > 150:
+        raise ValueError( f"It seems that your value of Target_Age_Max ({Target_Age_Max}) might be in units of days instead of years." )
+    if Target_Age_Min > 150:
+        raise ValueError( f"It seems that your value of Target_Age_Min ({Target_Age_Min}) might be in units of days instead of years." )
+    camp.add( event )
+
+        
+def seed_by_coverage(campaign_builder, timestep, coverage=0.01, node_ids=[], properties=None, ignore_immunity=None, intervention_only=False):
     """
     This simple function provides a very common piece of functionality to seed an infection. A future version 
     will support targeted nodesets.

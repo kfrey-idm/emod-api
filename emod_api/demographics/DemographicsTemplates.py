@@ -353,6 +353,31 @@ def MortalityStructureNigeriaDHS(demog):
 #
 # Fertilty
 #
+def get_fert_dist_from_rates( rates ):
+    """
+    Write something...
+    """
+    fert_dist = {
+        "FertilityDistribution": {
+            "NumDistributionAxes": 2,
+            "AxisNames": ["age","year"],
+            "AxisUnits": ["years","simulation_year"],
+            "AxisScaleFactors": [365,1],
+            "NumPopulationGroups": [
+                2,
+                len(rates)
+            ],
+            "PopulationGroups": [
+                [0,125],
+                [x for x in range(len(rates))]
+            ],
+            "ResultScaleFactor": 2.73972602739726e-03,
+            "ResultUnits": "annual births per 1000 individuals",
+            "ResultValues": [ rates, rates ]
+        }
+    }
+    return fert_dist
+
 def get_fert_dist( path_to_csv ):
     """
         This function takes a fertility csv file (by year and age bin) and populates a DTK demographics.json file,

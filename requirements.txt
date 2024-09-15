@@ -8,3 +8,4 @@ geographiclib
 sklearn
 lz4 # should pick up pre-built Gohlke wheel from Artifactory
 prodict # utility for dictionaries
+graphviz
