@@ -1,0 +1,35 @@
+{
+    "parameters": {
+        "Demographics_Filenames": [
+            "../00_Generic_Default/demographics.json",
+            "demographics_2groups_overlay.json",
+            "demographics_overlay.json"
+        ],
+        "Enable_Immunity": 0,
+        "Enable_Natural_Mortality": 1,
+        "Individual_Sampling_Type": "FIXED_SAMPLING",
+        "Enable_Infection_Rate_Overdispersion": 1,
+        "Base_Infectivity_Constant": 2,
+        "Infectious_Period_Constant": 3,
+        "Infectious_Period_Distribution": "CONSTANT_DISTRIBUTION",
+        "Enable_Infectivity_Reservoir": 1,
+        "Enable_Infectivity_Scaling": 1,
+        "Enable_Infectivity_Scaling_Boxcar": 1,
+        "Enable_Infectivity_Scaling_Climate": 0,
+        "Enable_Infectivity_Scaling_Density": 1,
+        "Enable_Infectivity_Scaling_Exponential": 1,
+        "Enable_Infectivity_Scaling_Sinusoid": 1,
+        "Infectivity_Exponential_Baseline": 0.1,
+        "Infectivity_Exponential_Delay": 5,
+        "Infectivity_Exponential_Rate": 0.1,
+        "Infectivity_Population_Density_HalfMax": 2,
+        "Enable_Heterogeneous_Intranode_Transmission": 1,
+        "logLevel_Susceptibility": "INFO",
+        "Custom_Reports_Filename": "NoCustomReports",
+        "Enable_Property_Output": 1,
+        "Config_Name": "test_overdispersion_regression",
+        "Run_Number": 1,
+        "Simulation_Duration": 100
+    },
+    "Default_Config_Path": "data/config/input_default_config.json"
+}

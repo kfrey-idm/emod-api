@@ -1,0 +1,13 @@
+{
+    "environment": {
+        "pip": ["lz4","numpy"]
+    },
+    "packages": [
+        {
+            "name": "emod_api",
+            "path": "package_setup.py",
+            "test_path": ["emod_api/serialization/tests/dtkFileTests.py"],
+            "steps": ["build", "build_wheel", "install_wheel", "test"]
+        }
+    ]
+}

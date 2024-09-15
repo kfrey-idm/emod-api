@@ -1,0 +1,52 @@
+{
+  "Header":{
+    "DateTime":"Wed November 27 2019 14:49:15",
+    "DTK_Version":"0 unknown-branch (unknown) May 31 2019 15:04:44",
+    "Report_Type":"InsetChart",
+    "Report_Version":"3.2",
+    "Start_Time":0,
+    "Simulation_Timestep":1,
+    "Timesteps":14,
+    "Channels":2
+  },
+  "Channels":{
+    "Births":{
+      "MISSING_Units_MISSING":"Births",
+      "Data":[
+        793,
+        1593,
+        2448,
+        3232,
+        4088,
+        4938,
+        5741,
+        6574,
+        7415,
+        8224,
+        9036,
+        9861,
+        10737,
+        11560
+      ]
+    },
+    "Daily (Human) Infection Rate":{
+      "Units":"Infection Rate",
+      "Data":[
+        0,
+        0,
+        0,
+        0,
+        9.044492230714e-07,
+        9.01243708995e-07,
+        9.046637501342e-07,
+        9.006053005578e-07,
+        9.006053005578e-07,
+        9.005344736579e-07,
+        9.00180282315e-07,
+        9.00463646758e-07,
+        1.510467086518e-06,
+        1.513482857263e-06
+      ]
+    }
+  }
+}

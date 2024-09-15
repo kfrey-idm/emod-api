@@ -1,2 +1,75 @@
-# emodpi-api-new
-Python API for editing input and output files of EMOD
+# emod-api
+Python library/utilities/tools for interacting with DTK input and output files
+
+Developer note: Any .py file in emod_api will be included in the package.
+
+![](https://github.com/institutefordiseasemodeling/emod-api/workflows/Package%20and%20test%20on%20Ubuntu/badge.svg)  
+![](https://github.com/institutefordiseasemodeling/emod-api/workflows/Package%20and%20test%20on%20Windows/badge.svg)
+
+Documentation available at https://docs.idmod.org/projects/emod-api/en/latest/.
+
+## Dependencies
+
+### Linux
+
+emod-api can use Snappy [de]compression (python-snappy, actually) as necessary if it is installed
+which requires libdev-snappy (Debian/Ubuntu) or snappy-devel (RedHat/CentOS) on Linux.
+
+Ubuntu: ```[sudo] apt install libdev-snappy```
+
+CentOS: ```[sudo] yum install snappy-devel``` (not yet tested)
+
+### Windows
+
+If Snappy compression support is desired or needed, consider downloading and installing the latest
+python-snappy package for Windows from Christoph Gohlke's python package website:
+https://www.lfd.uci.edu/~gohlke/pythonlibs/#python-snappy
+
+## user stories
+
+Input
+- User wants to be able to create a minimal working config.json for any sim type guaranteed to work with a given Eradication binary.
+- User wants to be able to create config.json from large static 'defaults' file and small variable parameters-of-interest file.
+- User wants to be able to create guaranteed to work campaigns without having to interact with campaign.json files.
+- User wants to create a migration file without having to grok our custom binary migration format.
+- User wants to be able to create large multi-node demographics files programatically.
+
+Output
+- User wants to be able to get post-processed (cleaned up) schema.
+- User wants to be able to get data from InsetChart.json without worrying about exact file format of the files.
+- User wants to be able to extract data of interest from spatial binary files.
+- User wants to be able to work easily with serialization files.
+- User wants to be able to work easily with (pending) events.sql file.
+
+## Dev Tips
+
+- To build package: `python package_setup.py build`
+
+- To build wheel (.whl): `python package_setup.py bdist_wheel`
+
+- To import package, you can either:
+  - Set symlink to built module in build subdirectory
+  - do python package_setup.py install
+  - do python package_setup.py develop
+
+- To install package (fill in actual version number in filename):  
+`    pip install dist/emod_api...whl`
+
+- To update the installed package (fill in actual version number in filename):  
+`    pip install --upgrade dist/emod_api...whl`
+
+## Capability Wishlist Based on Known Use Cases rather than Systematic Coverage
+
+- Migration files: users should never have to edit migration binary or header files.
+- Serialization: Population manipulation, such as adding IPs or adding risk factors.
+- Demographics: HINT matrices should not be created directly in demographics.
+- Demographics: Population demographic initalization should be easier and reliable.
+- Config: param_overrides & w5ml & custom events.
+
+### Running tests
+
+`python3 tests/channel_reports.py`  
+`python3 tests/serialization.py`  
+`python3 tests/spatial_reports.py`  
+`python3 tests/weather_files.py`  
+

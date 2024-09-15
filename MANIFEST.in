@@ -1,0 +1,2 @@
+graft emod_api/tests/data/*
+graft emod_api/dtk_tools/serialization/test-data/*

@@ -1,0 +1,522 @@
+{
+    "Metadata": {
+        "DateCreated": "Sun Sep 25 23:19:55 2011",
+        "Tool": "convertdemog.py",
+        "Author": "jsteinkraus",
+        "IdReference": "Gridded world grump2.5arcmin",
+        "Resolution": 150,
+        "NodeCount": 4
+    },
+    "Defaults": {
+        "NodeAttributes": {
+            "Latitude": -8.5,
+            "Longitude": 36.5,
+            "Altitude": 0,
+            "Airport": 0,
+            "Region": 1,
+            "Seaport": 0,
+            "InitialPopulation": 1000,
+            "BirthRate": 0.0002,
+            "InitialVectorsPerSpecies": {
+                "arabiensis": 500,
+                "funestus": 500,
+                "gambiae": 500
+            },
+            "LarvalHabitatMultiplier": [
+                {
+                    "Factor": 10.0,
+                    "Habitat": "TEMPORARY_RAINFALL",
+                    "Species": "gambiae"
+                }
+            ]
+        },
+        "IndividualProperties": [
+            {
+                "Property": "Geographic",
+                "Values": [
+                    "NONE",
+                    "GM_1",
+                    "GM_2",
+                    "GM_3",
+                    "GM_4",
+                    "GM_5"
+                ],
+                "Initial_Distribution": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "Transitions": []
+            }
+        ],
+        "IndividualAttributes": {
+            "AgeDistributionFlag": 3,
+            "AgeDistribution1": 0.000118,
+            "AgeDistribution2": 0,
+            "PrevalenceDistributionFlag": 0,
+            "PrevalenceDistribution1": 0,
+            "PrevalenceDistribution2": 0,
+            "SusceptibilityDistributionFlag": 0,
+            "SusceptibilityDistribution1": 1,
+            "SusceptibilityDistribution2": 0,
+            "RiskDistributionFlag": 0,
+            "RiskDistribution1": 1,
+            "RiskDistribution2": 0,
+            "MigrationHeterogeneityDistributionFlag": 0,
+            "MigrationHeterogeneityDistribution1": 1,
+            "MigrationHeterogeneityDistribution2": 0,
+            "MortalityDistribution": {
+                "NumDistributionAxes": 2,
+                "AxisNames": [
+                    "gender",
+                    "age"
+                ],
+                "AxisUnits": [
+                    "male=0,female=1",
+                    "years"
+                ],
+                "AxisScaleFactors": [
+                    1,
+                    365
+                ],
+                "NumPopulationGroups": [
+                    2,
+                    3
+                ],
+                "PopulationGroups": [
+                    [
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        100,
+                        2000
+                    ]
+                ],
+                "ResultUnits": "annual deaths per 1000 individuals",
+                "ResultScaleFactor": 0.0000027397260273972606,
+                "ResultValues": [
+                    [
+                        0,
+                        20.0000035,
+                        400.00007
+                    ],
+                    [
+                        0,
+                        20.0000035,
+                        400.00007
+                    ]
+                ]
+            }
+        }
+    },
+    "NodeProperties": [
+        {
+            "Property": "Place",
+            "Values": [
+                "RURAL",
+                "URBAN"
+            ],
+            "Initial_Distribution": [
+                0.6,
+                0.4
+            ]
+        },
+        {
+            "Property": "Risk",
+            "Values": [
+                "HIGH",
+                "MED",
+                "LOW"
+            ],
+            "Initial_Distribution": [
+                0.1,
+                0.2,
+                0.7
+            ]
+        },
+        {
+            "Property": "InterventionStatus",
+            "Values": [
+                "NONE",
+                "SPRAYED_A",
+                "SPRAYED_B",
+                "FENCE_AND_TRAP"
+            ],
+            "Initial_Distribution": [
+                0.4,
+                0.2,
+                0.3,
+                0.1
+            ]
+        }
+    ],
+    "Nodes": [
+        {
+            "NodeID": 340461476,
+            "NodeAttributes": {
+                "Latitude": -8.5,
+                "Longitude": 36.5,
+                "Altitude": 0,
+                "Airport": 0,
+                "Region": 1,
+                "Seaport": 0,
+                "InitialPopulation": 1000,
+                "BirthRate": 0.0001,
+                "LarvalHabitatMultiplier": [
+                    {
+                        "Factor": 0,
+                        "Habitat": "TEMPORARY_RAINFALL",
+                        "Species": "gambiae"
+                    }
+                ]
+            },
+            "IndividualProperties": [
+                {
+                    "Property": "Geographic",
+                    "Values": [
+                        "NONE",
+                        "GM_1",
+                        "GM_2",
+                        "GM_3",
+                        "GM_4",
+                        "GM_5"
+                    ],
+                    "Initial_Distribution": [
+                        0.5,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.5
+                    ],
+                    "Transitions": []
+                }
+            ],
+            "IndividualAttributes": {
+                "AgeDistributionFlag": 3,
+                "AgeDistribution1": 0.000118,
+                "AgeDistribution2": 0,
+                "PrevalenceDistributionFlag": 1,
+                "PrevalenceDistribution1": 0.1,
+                "PrevalenceDistribution2": 0.2,
+                "ImmunityDistributionFlag": 0,
+                "ImmunityDistribution1": 1,
+                "ImmunityDistribution2": 0,
+                "RiskDistributionFlag": 0,
+                "RiskDistribution1": 1,
+                "RiskDistribution2": 0,
+                "MigrationHeterogeneityDistributionFlag": 0,
+                "MigrationHeterogeneityDistribution1": 1,
+                "MigrationHeterogeneityDistribution2": 0,
+                "MortalityDistribution": {
+                    "NumDistributionAxes": 2,
+                    "AxisNames": [
+                        "gender",
+                        "age"
+                    ],
+                    "AxisUnits": [
+                        "male=0,female=1",
+                        "years"
+                    ],
+                    "AxisScaleFactors": [
+                        1,
+                        365
+                    ],
+                    "NumPopulationGroups": [
+                        2,
+                        3
+                    ],
+                    "PopulationGroups": [
+                        [
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            100,
+                            2000
+                        ]
+                    ],
+                    "ResultUnits": "annual deaths per 1000 individuals",
+                    "ResultScaleFactor": 0.0000027397260273972606,
+                    "ResultValues": [
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ],
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "NodeID": 340461477,
+            "NodeAttributes": {
+                "Latitude": -8.5,
+                "Longitude": 36.5,
+                "Altitude": 0,
+                "Airport": 0,
+                "Region": 1,
+                "Seaport": 0,
+                "InitialPopulation": 1000,
+                "BirthRate": 0.0001,
+                "InitialVectorsPerSpecies": {
+                    "arabiensis": 12,
+                    "funestus": 235,
+                    "gambiae": 0
+                }
+            },
+            "IndividualProperties": [
+                {
+                    "Property": "Geographic",
+                    "Values": [
+                        "NONE",
+                        "GM_1",
+                        "GM_2",
+                        "GM_3",
+                        "GM_4",
+                        "GM_5"
+                    ],
+                    "Initial_Distribution": [
+                        0,
+                        0.5,
+                        0.5,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Transitions": []
+                }
+            ],
+            "IndividualAttributes": {
+                "AgeDistributionFlag": 3,
+                "AgeDistribution1": 0.000118,
+                "AgeDistribution2": 0,
+                "PrevalenceDistributionFlag": 1,
+                "PrevalenceDistribution1": 0.1,
+                "PrevalenceDistribution2": 0.2,
+                "ImmunityDistributionFlag": 0,
+                "ImmunityDistribution1": 1,
+                "ImmunityDistribution2": 0,
+                "RiskDistributionFlag": 0,
+                "RiskDistribution1": 1,
+                "RiskDistribution2": 0,
+                "MigrationHeterogeneityDistributionFlag": 0,
+                "MigrationHeterogeneityDistribution1": 1,
+                "MigrationHeterogeneityDistribution2": 0,
+                "MortalityDistribution": {
+                    "NumDistributionAxes": 2,
+                    "AxisNames": [
+                        "gender",
+                        "age"
+                    ],
+                    "AxisUnits": [
+                        "male=0,female=1",
+                        "years"
+                    ],
+                    "AxisScaleFactors": [
+                        1,
+                        365
+                    ],
+                    "NumPopulationGroups": [
+                        2,
+                        3
+                    ],
+                    "PopulationGroups": [
+                        [
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            100,
+                            2000
+                        ]
+                    ],
+                    "ResultUnits": "annual deaths per 1000 individuals",
+                    "ResultScaleFactor": 0.0000027397260273972606,
+                    "ResultValues": [
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ],
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "NodeID": 340461478,
+            "NodeAttributes": {
+                "Latitude": -8.5,
+                "Longitude": 36.5,
+                "Altitude": 0,
+                "Airport": 0,
+                "Region": 1,
+                "Seaport": 0,
+                "InitialPopulation": 1000,
+                "BirthRate": 0.0001,
+                "InitialVectorsPerSpecies": {
+                    "arabiensis": 12,
+                    "funestus": 555,
+                    "gambiae": 0
+                }
+            },
+            "IndividualAttributes": {
+                "AgeDistributionFlag": 3,
+                "AgeDistribution1": 0.003,
+                "AgeDistribution2": 0,
+                "PrevalenceDistributionFlag": 1,
+                "PrevalenceDistribution1": 0.1,
+                "PrevalenceDistribution2": 0.2,
+                "ImmunityDistributionFlag": 0,
+                "ImmunityDistribution1": 1,
+                "ImmunityDistribution2": 0,
+                "RiskDistributionFlag": 0,
+                "RiskDistribution1": 1,
+                "RiskDistribution2": 0,
+                "MigrationHeterogeneityDistributionFlag": 0,
+                "MigrationHeterogeneityDistribution1": 1,
+                "MigrationHeterogeneityDistribution2": 0,
+                "MortalityDistribution": {
+                    "NumDistributionAxes": 2,
+                    "AxisNames": [
+                        "gender",
+                        "age"
+                    ],
+                    "AxisUnits": [
+                        "male=0,female=1",
+                        "years"
+                    ],
+                    "AxisScaleFactors": [
+                        1,
+                        365
+                    ],
+                    "NumPopulationGroups": [
+                        2,
+                        3
+                    ],
+                    "PopulationGroups": [
+                        [
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            100,
+                            2000
+                        ]
+                    ],
+                    "ResultUnits": "annual deaths per 1000 individuals",
+                    "ResultScaleFactor": 0.0000027397260273972606,
+                    "ResultValues": [
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ],
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "NodeID": 340461479,
+            "NodeAttributes": {
+                "Latitude": -8.5,
+                "Longitude": 36.5,
+                "Altitude": 0,
+                "Airport": 0,
+                "Region": 1,
+                "Seaport": 0,
+                "InitialPopulation": 1000,
+                "BirthRate": 0.000129034,
+                "InitialVectorsPerSpecies": {
+                    "arabiensis": 10,
+                    "funestus": 20,
+                    "gambiae": 0
+                }
+            },
+            "IndividualAttributes": {
+                "AgeDistributionFlag": 3,
+                "AgeDistribution1": 0.000118,
+                "AgeDistribution2": 0,
+                "PrevalenceDistributionFlag": 1,
+                "PrevalenceDistribution1": 0.1,
+                "PrevalenceDistribution2": 0.2,
+                "ImmunityDistributionFlag": 0,
+                "ImmunityDistribution1": 1,
+                "ImmunityDistribution2": 0,
+                "RiskDistributionFlag": 0,
+                "RiskDistribution1": 1,
+                "RiskDistribution2": 0,
+                "MigrationHeterogeneityDistributionFlag": 0,
+                "MigrationHeterogeneityDistribution1": 1,
+                "MigrationHeterogeneityDistribution2": 0,
+                "MortalityDistribution": {
+                    "NumDistributionAxes": 2,
+                    "AxisNames": [
+                        "gender",
+                        "age"
+                    ],
+                    "AxisUnits": [
+                        "male=0,female=1",
+                        "years"
+                    ],
+                    "AxisScaleFactors": [
+                        1,
+                        365
+                    ],
+                    "NumPopulationGroups": [
+                        2,
+                        3
+                    ],
+                    "PopulationGroups": [
+                        [
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            100,
+                            2000
+                        ]
+                    ],
+                    "ResultUnits": "annual deaths per 1000 individuals",
+                    "ResultScaleFactor": 0.0000027397260273972606,
+                    "ResultValues": [
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ],
+                        [
+                            0,
+                            20.0000035,
+                            400.00007
+                        ]
+                    ]
+                }
+            }
+        }
+    ]
+}
