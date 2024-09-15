@@ -8,6 +8,73 @@ from collections import defaultdict
 from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
 import copy
 
+class CrudeRate(): # would like to derive from float
+    def __init__(self, init_rate):
+        self._time_units = 365
+        self._people_units = 1000
+        self._rate = init_rate
+    def get_dtk_rate(self):
+        return self._rate / self._time_units / self._people_units
+
+class YearlyRate(CrudeRate): # would like to derive from float
+    def __init__(self, init_rate):
+        self._time_units = 365
+        self._people_units = 1
+        if type(init_rate) is CrudeRate:
+            self._rate = init_rate._rate/1000.
+        else:
+            self._rate = init_rate
+
+class DtkRate(CrudeRate):
+    def __init__(self, init_rate):
+        super().__init__(init_rate)
+        self._time_units = 1
+        self._people_units = 1
+        self._rate = init_rate
+
+
+# Migration
+def _set_migration_model_fixed_rate(config):
+    config.parameters.Migration_Model = "FIXED_RATE_MIGRATION"
+    return config
+
+
+def _set_migration_pattern_srt(config):
+    config.parameters.Migration_Pattern = "SINGLE_ROUND_TRIPS"
+    return config
+
+
+def _set_migration_pattern_rwd(config):
+    config.parameters.Migration_Pattern = "RANDOM_WALK_DIFFUSION"
+    return config
+
+
+def _set_regional_migration_filenames(config, file_name):
+    config.parameters.Regional_Migration_Filename = file_name
+    return config
+
+
+def _set_local_migration_filename(config, file_name):
+    config.parameters.Local_Migration_Filename = file_name
+    return config
+
+
+def _set_demographic_filenames(config, file_names):
+    config.parameters.Demographics_Filenames = file_names
+    return config
+
+
+def _set_local_migration_roundtrip_probability(config, probability_of_return):
+    config.parameters.Local_Migration_Roundtrip_Probability = probability_of_return
+    return config
+
+
+def _set_regional_migration_roundtrip_probability(config, probability_of_return):
+    config.parameters.Regional_Migration_Roundtrip_Probability = probability_of_return
+    return config
+
+
+
 # Susceptibility
 def _set_suscept_complex( config ):
     config.parameters.Susceptibility_Initialization_Distribution_Type = "DISTRIBUTION_COMPLEX"
@@ -50,7 +117,7 @@ def _set_fertility_age_year( config ):
     return config
 
 def _set_enable_births( config ):
-    config.parameters.Enable_Birth = 1
+    config.parameters.Birth_Rate_Dependence = "POPULATION_DEP_RATE"
     return config
 
 # Risk
@@ -312,7 +379,8 @@ def MortalityRateByAge(demog, age_bins, mort_rates):
 
 def _ConstantMortality(mortality_rate: float):
     if type(mortality_rate) is float:
-        temp = -1 * (math.log(1 - mortality_rate) / 365)
+        #temp = -1 * (math.log(1 - mortality_rate) / 365)
+        temp = -1 * (math.log(1 - mortality_rate))
         new_mortality_rate = [[temp], [temp]]
     else:  # assume list
         new_mortality_rate = copy.deepcopy(mortality_rate)
@@ -355,7 +423,11 @@ def MortalityStructureNigeriaDHS(demog):
 #
 def get_fert_dist_from_rates( rates ):
     """
-    Write something...
+    Create dictionary with DTK-compatible distributions from input vectors of fertility (crude) rates.
+
+    Args:
+        rates: Array/vector of crude rates for whole population, for a range of years.
+
     """
     fert_dist = {
         "FertilityDistribution": {
@@ -376,7 +448,7 @@ def get_fert_dist_from_rates( rates ):
             "ResultValues": [ rates, rates ]
         }
     }
-    return fert_dist
+    return IndividualAttributes.FertilityDistribution().from_dict( fertility_distribution=fert_dist["FertilityDistribution"] )
 
 def get_fert_dist( path_to_csv ):
     """
@@ -469,13 +541,14 @@ def InitAgeUniform( demog ):
     demog.SetDefaultFromTemplate( setting, _set_age_simple )
 
 def _computeAgeDist(bval,mvecX,mvecY,fVec):
-    """compute equilibrium age distribution given age-specific mortality and crude birth rates
+    """
+    Compute equilibrium age distribution given age-specific mortality and crude birth rates
 
-    :param bval: crude birth rate in births per day per person
-    :param mvecX: list of age bins in days
-    :param mvecY: List of per day mortality rate for the age bins
-    :param fVec: Seasonal forcing per month
-
+    Args:
+        bval: crude birth rate in births per day per person
+        mvecX: list of age bins in days
+        mvecY: List of per day mortality rate for the age bins
+        fVec: Seasonal forcing per month
 
     returns ??, MonthlyAgeDist, MonthlyAgeBins
     author: Kurt Frey
@@ -536,18 +609,21 @@ def AgeStructureUNWPP( demog ):
             }
     demog.SetDefaultFromTemplate( setting, _set_age_complex )
 
-def _EquilibriumAgeDistFromBirthAndMortRates(CrudeBirthRate=40/1000, CrudeMortRate=20/1000):
+def _EquilibriumAgeDistFromBirthAndMortRates(birth_rate=YearlyRate(40/1000.), mort_rate=YearlyRate(20/1000.)):
     """
-    For the moment, this is assuming constant mortality, should update with an interpolator based on demographics file to improve
-    Reuse of some of these demographics variables and passing them around indicates this may be better as a class.  May be
-    best to wait however, until the idmtools Demographics class is around, so that we can inherit from that and only add functionality.
-    Should maybe allow user to specify the "fineness" of the age-binning for the final demographics distribution
-    Having to do this conversion of crude birth rates to per-day per-person rates frequently.  Should find the right place
-    to do this only once.
-    """
-    BirthRate = math.log(1 + CrudeBirthRate) / 365
-    MortRate = -1 * (math.log(1 - CrudeMortRate) / 365)
+    Set age distribution based on birth and death rates.
 
+    Args:
+        birth_rate: births per person per year.
+        mort_rate: deaths per person per year.
+
+    Returns:
+        dictionary which can be inserted into demographics object.
+
+    """
+    BirthRate = math.log(1 + birth_rate.get_dtk_rate())
+    MortRate = -1 * math.log(1 - mort_rate.get_dtk_rate())
+    
     # It is important for the age distribution computation that the age-spacing be very fine; I've used 30 days here.
     # With coarse spacing, the computation in practice doesn't work as well.
     ageDist = _computeAgeDist(BirthRate, [i * 30 for i in range(1200)], 1200 * [MortRate], 12 * [1.0])

@@ -6,7 +6,22 @@ Developer note: Any .py file in emod_api will be included in the package.
 ![](https://github.com/institutefordiseasemodeling/emod-api/workflows/Package%20and%20test%20on%20Ubuntu/badge.svg)  
 ![](https://github.com/institutefordiseasemodeling/emod-api/workflows/Package%20and%20test%20on%20Windows/badge.svg)
 
+## Documentation
+
 Documentation available at https://docs.idmod.org/projects/emod-api/en/latest/.
+
+To build the documentation locally, do the following:
+
+1. Create and activate a venv.
+2. Navigate to the root directory of the repo and enter the following
+
+    ```
+    pip install -r requirements.txt
+    cd docs
+    pip install -r requirements.txt
+    cd ..
+    pip install -e .
+    ```
 
 ## Dependencies
 

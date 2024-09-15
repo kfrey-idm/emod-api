@@ -8,6 +8,7 @@ from emod_api.interventions import outbreak as ob
 from emod_api import campaign as camp
 
 from camp_test import CampaignTest, delete_existing_file
+
 import outbreak_arguments as testcase
 current_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -135,6 +136,29 @@ class OutbreakTest(CampaignTest):
         self.assertEqual(ic['class'], 'OutbreakIndividual')
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
         camp.reset()
+
+    def test_seed(self):
+        camp.set_schema( camp.schema_path )
+        timestep = 10
+        coverage = 0.05
+        ob.seed(camp=camp, Start_Day=timestep, Coverage=coverage)
+        event_name = 'individual_outbreak'
+        camp_filename = 'outbreak_individual.json'
+        delete_existing_file(camp_filename)
+        camp.save(camp_filename)
+        self.assertTrue(os.path.isfile(camp_filename))
+        with open(camp_filename, 'r') as file:
+            campaign = json.load(file)
+            camp_event = campaign["Events"]
+        self.assertEqual(len(camp_event), 1)
+        event = camp_event[0]
+        self.assertEqual(event['Start_Day'], timestep )
+        self.assertEqual(event['Event_Coordinator_Config']['Demographic_Coverage'], coverage)
+        self.assertTrue(self.rec_check_camp(campaign) is None)
+
+        ic = event['Event_Coordinator_Config']['Intervention_Config']
+        self.assertEqual(ic['class'], 'OutbreakIndividual')
+        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_seed(self):
         camp.set_schema( camp.schema_path )

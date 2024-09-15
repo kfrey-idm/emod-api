@@ -168,6 +168,15 @@ class Node(Updateable):
     def _set_mortality_distribution(self, distribution: IndividualAttributes.MortalityDistribution = None):
         self.individual_attributes.mortality_distribution = distribution
 
+    def _set_mortality_distribution_female(self, distribution: IndividualAttributes.MortalityDistribution = None):
+        self.individual_attributes.mortality_distribution_female = distribution
+
+    def _set_mortality_distribution_male(self, distribution: IndividualAttributes.MortalityDistribution = None):
+        self.individual_attributes.mortality_distribution_male = distribution
+
+    def _set_fertility_distribution(self, distribution: IndividualAttributes.FertilityDistribution = None):
+        self.individual_attributes.fertility_distribution = distribution
+
     def _set_age_distribution(self, distribution: IndividualAttributes.AgeDistribution = None):
         self.individual_attributes.age_distribution = distribution
 

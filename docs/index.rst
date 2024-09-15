@@ -18,6 +18,7 @@ disease transmission model.
    faq
    modules
    glossary
+   plotters
 
 
 .. toctree::

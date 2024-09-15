@@ -7,7 +7,6 @@ import json
 from emod_api.interventions.common import *
 from emod_api.interventions import common, migration
 from emod_api import campaign as camp
-from emod_api.interventions import utils as ut
 
 from camp_test import CampaignTest, delete_existing_file
 

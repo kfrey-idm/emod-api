@@ -11,7 +11,7 @@ from camp_test import CampaignTest, delete_existing_file
 
 current_directory = os.path.dirname(os.path.realpath(__file__))
 
-
+_sim_max_time = 365000
 class NodeMultiplierTest(CampaignTest):
     def test_as_file(self):
         camp_filename = 'node_multiplier_as_file.json'
@@ -33,7 +33,7 @@ class NodeMultiplierTest(CampaignTest):
 
         ic = ecc['Intervention_Config']
         self.assertEqual(ic['class'], 'NodeInfectivityMult')
-        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, 36500],
+        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, _sim_max_time ],
                                                         "Values": [1, 1]})
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
@@ -60,7 +60,7 @@ class NodeMultiplierTest(CampaignTest):
 
         ic = ecc['Intervention_Config']
         self.assertEqual(ic['class'], 'NodeInfectivityMult')
-        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, 36500],
+        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, _sim_max_time ],
                                                         "Values": [1, 1]})
 
         self.assertTrue(self.rec_check_camp(campaign) is None)
@@ -92,7 +92,7 @@ class NodeMultiplierTest(CampaignTest):
 
         ic = ecc['Intervention_Config']
         self.assertEqual(ic['class'], 'NodeInfectivityMult')
-        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, 36500],
+        self.assertEqual(ic['Multiplier_By_Duration'], {"Times": [0, _sim_max_time ],
                                                         "Values": [new_infectivity, new_infectivity]})
 
         self.assertTrue(self.rec_check_camp(campaign) is None)

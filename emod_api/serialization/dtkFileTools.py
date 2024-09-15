@@ -18,7 +18,7 @@ IDTK = 'IDTK'
 NONE = 'NONE'
 LZ4 = 'LZ4'
 SNAPPY = 'SNAPPY'
-MAX_VERSION = 4
+MAX_VERSION = 5
 
 __engines__ = {LZ4: support.EllZeeFour, SNAPPY: support.Snappy, NONE: support.Uncompressed}
 
@@ -39,16 +39,18 @@ def compress(data, engine):
 
 class DtkHeader(support.SerialObject):
     # noinspection PyDefaultArgument
-    def __init__(self, dictionary={
-            'author': 'unknown',
-            'bytecount': 0,
-            'chunkcount': 0,
-            'chunksizes': [],
-            'compressed': True,
-            'date': time.strftime('%a %b %d %H:%M:%S %Y'),
-            'engine': LZ4,
-            'tool': os.path.basename(__file__),
-            'version': 1}):
+    def __init__(self, dictionary=None):
+        if dictionary is None:
+            dictionary={
+                'author': 'unknown',
+                'bytecount': 0,
+                'chunkcount': 0,
+                'chunksizes': [],
+                'compressed': True,
+                'date': time.strftime('%a %b %d %H:%M:%S %Y'),
+                'engine': LZ4,
+                'tool': os.path.basename(__file__),
+                'version': 1}
         super(DtkHeader, self).__init__(dictionary)
         return
 
@@ -377,6 +379,30 @@ class DtkFileV4(DtkFileV3):
         return
 
 
+class DtkFileV5(DtkFileV4):
+    def __init__(self, header=None, filename='', handle=None):
+        if header is None:
+            header = DtkHeader()
+            version5_params = {
+                'emod_info': {
+                    'emod_major_version': 0,
+                    'emod_minor_version': 0,
+                    'emod_revision_number': 0,
+                    'ser_pop_major_version': 0,
+                    'ser_pop_minor_version': 0,
+                    'ser_pop_patch_version': 0,
+                    'emod_build_date': "Mon Jan 1 00:00:00 1970",
+                    'emod_builder_name': "",
+                    'emod_sccs_branch': 0,
+                    'emod_sccs_date': "Mon Jan 1 00:00:00 1970"
+                }
+            }
+            header.update(version5_params)
+        super(DtkFileV5, self).__init__(header, filename, handle)
+        header.version = 5
+        return
+
+
 def read(filename):
 
     new_file = None
@@ -391,6 +417,8 @@ def read(filename):
             new_file = DtkFileV3(header, filename=filename, handle=handle)
         elif header.version == 4:
             new_file = DtkFileV4(header, filename=filename, handle=handle)
+        elif header.version == 5:
+            new_file = DtkFileV5(header, filename=filename, handle=handle)
         else:
             raise UserWarning('Unknown serialized population file version: {0}'.format(header.version))
 

@@ -13,7 +13,7 @@ import csv
 
 # for from_params()
 import scipy.spatial.distance as spspd
-import emod_api.demographics.Demographics as Demog
+from emod_api.demographics import Demographics as Demog
 
 # for from_demog_and_param_gravity()
 from geographiclib.geodesic import Geodesic
@@ -748,6 +748,11 @@ def from_demog_and_param_gravity_webservice(demographics_file_path: str, params:
 
 
 def from_demog_and_param_gravity(demographics_file_path, gravity_params, id_ref, migration_type=Migration.LOCAL):
+    demog = Demog.from_file(demographics_file_path)
+    return _from_demog_and_param_gravity(demog, gravity_params, id_ref, migration_type)
+
+
+def _from_demog_and_param_gravity(demographics, gravity_params, id_ref, migration_type=Migration.LOCAL):
     """
     Create migration files from a gravity model and an input demographics file.
     """
@@ -810,8 +815,7 @@ def from_demog_and_param_gravity(demographics_file_path, gravity_params, id_ref,
         return mig
 
     # load
-    demog = Demog.from_file(demographics_file_path)
-    nodes = [node.to_dict() for node in demog.nodes]
+    nodes = [node.to_dict() for node in demographics.nodes]
     migration = _compute_migr_dict(nodes, gravity_params)
     migration.IdReference = id_ref
     migration.MigrationType = migration_type
@@ -851,7 +855,7 @@ def to_csv(filename: Path):
                     print(display(node, gender, age, destination, rate))
 
 
-def from_csv(filename: Path):
+def from_csv(filename: Path, id_ref, mig_type=None):
     """Create migration from csv file. The file should have columns 'source' for the source node, 'destination' for the destination node, and 'rate' for the migration rate.
 
     Args:
@@ -862,9 +866,17 @@ def from_csv(filename: Path):
 
     """
     migration = Migration()
+    migration.IdReference = id_ref
+    if not mig_type:
+        mig_type = Migration.LOCAL
+    else:
+        migration._migrationtype = mig_type
     with filename.open("r") as csvfile:
         reader = csv.DictReader(csvfile)
+        csv_data_read = False
         for row in reader:
+            csv_data_read = True
             migration[int(row['source'])][int(row['destination'])] = float(row['rate'])
+        assert csv_data_read, "Csv file %s does not contain migration data." % filename
 
     return migration

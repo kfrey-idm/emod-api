@@ -2,7 +2,6 @@
 import os
 import unittest
 
-from emod_api.interventions import outbreak as ob
 from emod_api import campaign as camp
 
 current_directory = os.path.dirname(os.path.realpath(__file__))

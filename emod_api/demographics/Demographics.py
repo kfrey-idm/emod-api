@@ -3,6 +3,8 @@ import math
 import numpy as np
 import os
 import pandas as pd
+import tempfile
+import pathlib
 
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -12,8 +14,11 @@ from emod_api.demographics.BaseInputFile import BaseInputFile
 from emod_api.demographics.Node import Node
 from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
 from emod_api.demographics import DemographicsTemplates as DT
+from emod_api.demographics.DemographicsTemplates import CrudeRate, YearlyRate, DtkRate
 from emod_api.demographics.DemographicsInputDataParsers import node_ID_from_lat_long, duplicate_nodeID_check
 from typing import List
+from functools import partial
+from emod_api.migration import migration
 
 # Just make once-static methods module-level functions
 
@@ -68,31 +73,52 @@ def get_node_pops_from_params(tot_pop, num_nodes, frac_rural):
     return npops
 
 
-def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_params"):
+def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_params", random_2d_grid=False):
     """
-    Create an EMOD-compatible Demographics object with the population and number 
-    of nodes specified. frac_rural determines what fraction of the population gets
-    put in the 'rural' nodes, which means all nodes besides node 1. Node 1 is the 
-    'urban' node.
-    """ 
+    Create an EMOD-compatible Demographics object with the population and numbe of nodes specified.
+
+    Args:
+        tot_pop: The total population.
+        num_nodes: Number of nodes. Can be defined as a two-dimensional grid  of nodes [longitude, latitude].
+            The distance to the next neighbouring node is 1.
+        frac_rural: Determines what fraction of the population gets put in the 'rural' nodes, which means all nodes
+            besides node 1. Node 1 is the 'urban' node.
+        id_ref:  Facility name
+        random_2d_grid: Create a random distanced grid with num_nodes nodes.
+
+    Returns:
+        Object of type Demographics
+    """
     if frac_rural > 1.0:
         raise ValueError( f"frac_rural can't be greater than 1.0" )
     if frac_rural < 0.0:
         raise ValueError( f"frac_rural can't be less than 0" )
     if frac_rural == 0.0:
         frac_rural = 1e-09
-    npops = get_node_pops_from_params( tot_pop, num_nodes, frac_rural )
 
-    # Generate node lattice
-    ucellb = np.array([[1.0, 0.0], [-0.5, 0.86603]])
-    nlocs = np.random.rand(num_nodes, 2)
-    nlocs[0, :] = 0.5
-    nlocs = np.round(np.matmul(nlocs, ucellb), 4)
+    if random_2d_grid:
+        total_nodes = num_nodes
+        ucellb = np.array([[1.0, 0.0], [-0.5, 0.86603]])
+        nlocs = np.random.rand(num_nodes, 2)
+        nlocs[0, :] = 0.5
+        nlocs = np.round(np.matmul(nlocs, ucellb), 4)
+    else:
+        if isinstance(num_nodes, int):
+            lon_grid = num_nodes
+            lat_grid = 1
+        else:
+            lon_grid = num_nodes[0]  # east/west
+            lat_grid = num_nodes[1]  # north/south
+
+        total_nodes = lon_grid * lat_grid
+        nlocs = [[i, j] for i in range(lon_grid) for j in range(lat_grid)]
 
     nodes = []
+    npops = get_node_pops_from_params( tot_pop, total_nodes, frac_rural )
+
     # Add nodes to demographics
-    for idx in range(len(npops)):
-        nodes.append(Node(nlocs[idx, 1], nlocs[idx, 0], npops[idx], forced_id=idx + 1))
+    for idx, lat_lon in enumerate(nlocs):
+        nodes.append(Node(lat=lat_lon[0], lon=lat_lon[1], pop=npops[idx], forced_id=idx + 1))
 
     return Demographics(nodes=nodes, idref=id_ref)
 
@@ -237,6 +263,7 @@ class Demographics(BaseInputFile):
         self.idref = idref
         self.raw = None
         self.implicits = list()
+        self.migration_files = list()
 
         if base_file:
             with open(base_file, "rb") as src:
@@ -329,15 +356,158 @@ class Demographics(BaseInputFile):
             % (nodeid, ", ".join([str(node.name) for node in self._nodes]))
         )
 
-    def SetIndividualAttributesWithFertMort(self, CrudeBirthRate=40/1000, CrudeMortRate = 20/1000):
+    def SetMigrationPattern(self, pattern: str = "rwd"):
+        """
+        Set migration pattern. Migration is enabled implicitly.
+        It's unusual for the user to need to set this directly; normally used by emodpy.
+
+        Args:
+            pattern: Possible values are "rwd" for Random Walk Diffusion and "srt" for Single Round Trips.
+        """
+        if self.implicits is not None:
+            if pattern.lower() == "srt":
+                self.implicits.append(DT._set_migration_pattern_srt)
+            elif pattern.lower() == "rwd":
+                self.implicits.append(DT._set_migration_pattern_rwd)
+            else:
+                raise ValueError('Unknown migration pattern: %s. Possible values are "rwd" and "srt".', pattern)
+
+    def _SetRegionalMigrationFileName(self, file_name):
+        """
+        Set path to migration file.
+
+        Args:
+            file_name: Path to migration file.
+        """
+        if self.implicits is not None:
+            self.implicits.append(partial(DT._set_regional_migration_filenames, file_name=file_name))
+
+    def _SetLocalMigrationFileName(self, file_name):
+        """
+        Set path to migration file.
+
+        Args:
+            file_name: Path to migration file.
+        """
+        if self.implicits is not None:
+            self.implicits.append(partial(DT._set_local_migration_filename, file_name=file_name))
+
+    def _SetDemographicFileNames(self, file_names):
+        """
+        Set paths to demographic file.
+
+        Args:
+            file_names: Paths to demographic files.
+        """
+        if self.implicits is not None:
+            self.implicits.append(partial(DT._set_demographic_filenames, file_names=file_names))
+
+    def SetRoundTripMigration(self, gravity_factor, probability_of_return=1.0, id_ref='short term commuting migration'):
+        """
+        Set commuter/seasonal/temporary/round-trip migration rates.
+
+        Args:
+            gravity_factor: 'Big G' in gravity equation. Combines with 1, 1, and -2 as the other exponents.
+            probability_of_return: Likelihood that an individual who 'commuter migrates' will return to the node 
+                                   of origin during the next migration (not timestep). Defaults to 1.0. Aka, travel, shed, return."
+            id_ref: Text string that appears in the migration file itself; needs to match corresponding demographics file.
+        """
+        if gravity_factor<0:
+            raise ValueError( f"gravity factor can't be negeative." )
+
+        gravity_params = [gravity_factor, 1.0, 1.0, -2.0]
+        if probability_of_return<0 or probability_of_return>1.0:
+            raise ValueError( f"probability_of_return parameter passed by not a probability: {probability_of_return}" )
+
+        mig = migration._from_demog_and_param_gravity(self, gravity_params=gravity_params,
+                                                            id_ref=id_ref,
+                                                            migration_type=migration.Migration.LOCAL)
+        #migration_file_path = "commuter_migration.bin"
+        migration_file_path = tempfile.NamedTemporaryFile().name + ".bin"
+        mig.to_file(migration_file_path)
+        self.migration_files.append( migration_file_path )
+
+        if self.implicits is not None:
+            self.implicits.append(partial(DT._set_local_migration_roundtrip_probability, probability_of_return=probability_of_return)) 
+            self.implicits.append(partial(DT._set_local_migration_filename, file_name=pathlib.PurePath(migration_file_path).name))
+        self.SetMigrationPattern( "srt" )
+
+    def SetOneWayMigration(self, rates_path, id_ref='long term migration'):
+        """
+        Set one way migration.
+
+        Args:
+            rates_path: Path to csv file with node-to-node migration rates. Format is: source (node id),destination (node id),rate.
+            id_ref: Text string that appears in the migration file itself; needs to match corresponding demographics file.
+        """
+
+        import pathlib
+        mig = migration.from_csv( pathlib.Path( rates_path ), id_ref=id_ref, mig_type=migration.Migration.REGIONAL )
+        migration_file_path = tempfile.NamedTemporaryFile().name + ".bin"
+        mig.to_file(migration_file_path)
+        self.migration_files.append( migration_file_path )
+
+        if self.implicits is not None:
+            self.implicits.append(partial(DT._set_regional_migration_roundtrip_probability, probability_of_return=0.0))
+            self.implicits.append(partial(DT._set_regional_migration_filenames, file_name=pathlib.PurePath(migration_file_path).name))
+        self.SetMigrationPattern( "srt" )
+
+    def SetSimpleVitalDynamics(self, crude_birth_rate=CrudeRate(40), crude_death_rate=CrudeRate(20), node_ids=None):
+        """
+        Set fertility, mortality, and initial age with single birth rate and single mortality rate.
+
+        Args:
+            crude_birth_rate: Birth rate, per year per kiloperson.
+            crude_death_rate: Mortality rate, per year per kiloperson.
+            node_ids: Optional list of nodes to limit these settings to.
+
+        """
+
+        self.SetBirthRate(crude_birth_rate, node_ids)
+        self.SetMortalityRate(crude_death_rate, node_ids)
+        self.SetEquilibriumAgeDistFromBirthAndMortRates(crude_birth_rate, crude_death_rate, node_ids)
+
+    def SetEquilibriumVitalDynamics(self, crude_birth_rate=CrudeRate(40), node_ids=None):
+        """
+        Set fertility, mortality, and initial age with single rate and mortality to achieve steady state population.
+
+        Args:
+            crude_birth_rate: Birth rate. And mortality rate.
+            node_ids: Optional list of nodes to limit these settings to.
+
+        """
+
+        self.SetSimpleVitalDynamics(crude_birth_rate, crude_birth_rate, node_ids)
+
+    def SetEquilibriumVitalDynamicsFromWorldBank(self, wb_births_df, country, year, node_ids=None ):
+        """
+        Set steady-state fertility, mortality, and initial age with rates from world bank, for given country and year.
+
+        Args:
+            wb_births_df: Pandas dataframe with World Bank birth rate by country and year.
+            country: Country to pick from World Bank dataset.
+            year: Year to pick from World Bank dataset.
+            node_ids: Optional list of nodes to limit these settings to.
+
+        """
+
+        try:
+            birth_rate = CrudeRate(wb_births_df[wb_births_df['Country Name'] == country][str(year)].tolist()[0])
+            #result_scale_factor = 2.74e-06 # assuming world bank units for input
+            #birth_rate *= result_scale_factor # from births per 1000 pop per year to per person per day
+        except Exception as ex:
+            raise ValueError( f"Exception trying to find {year} and {country} in dataframe.\n{ex}" )
+        self.SetEquilibriumVitalDynamics(birth_rate, node_ids)
+
+    def SetIndividualAttributesWithFertMort(self, crude_birth_rate=CrudeRate(40), crude_mort_rate=CrudeRate(20)):
         self.raw['Defaults']['IndividualAttributes'] = {}
         DT.NoInitialPrevalence( self )
-        # self.raw['Defaults']['IndividualAttributes'].update(DT.NoRiskHeterogeneity())
-
-        #Alternative to EveryoneInitiallySusceptible is SimpleSusceptibilityDistribution(meanAgeAtInfection=2.5 or some other number)
         DT.EveryoneInitiallySusceptible( self )
-        self.SetMortalityRate(CrudeMortRate)
-        self.SetEquilibriumAgeDistFromBirthAndMortRates(CrudeBirthRate, CrudeMortRate)
+        if type(crude_birth_rate) is float or type(crude_birth_rate) is int:
+            crude_birth_rate=CrudeRate(crude_birth_rate)
+        if type(crude_mort_rate) is float or type(crude_mort_rate) is int:
+            crude_mort_rate=CrudeRate(crude_mort_rate)
+        self.SetSimpleVitalDynamics(crude_birth_rate, crude_mort_rate)
 
     def AddIndividualPropertyAndHINT(self, Property: str, Values: List[str], InitialDistribution:List[float] = None,
                                      TransmissionMatrix:List[List[float]] = None, Transitions: List=None):
@@ -439,24 +609,39 @@ class Demographics(BaseInputFile):
     def SetMinimalNodeAttributes(self): 
         self.SetDefaultNodeAttributes(birth=False)
 
-    def SetBirthRate(self, birth_rate):
+    # WB is births per 1000 pop per year 
+    # DTK is births per person per day.
+    def SetBirthRate(self, birth_rate, node_ids=None):
         """
         Set Default birth rate to birth_rate. Turn on Vital Dynamics and Births implicitly.
         """
-        self.raw['Defaults']['NodeAttributes'].update({
-            "BirthRate": birth_rate
-        })
+        if type(birth_rate) is float or type(birth_rate) is int:
+            birth_rate = CrudeRate(birth_rate)
+        dtk_birthrate = birth_rate.get_dtk_rate()
+        if node_ids is None:
+            self.raw['Defaults']['NodeAttributes'].update({
+                "BirthRate": dtk_birthrate
+            })
+        else:
+            for node_id in node_ids:
+                self.get_node(node_id).birth_rate = dtk_birthrate
         self.implicits.append(DT._set_enable_births)
 
-    def SetMortalityRate(self, mortality_rate, node_ids: List[int] = None):
+    def SetMortalityRate(self, mortality_rate: CrudeRate, node_ids: List[int] = None):
         """
         Set constant mortality rate to mort_rate. Turn on Enable_Natural_Mortality implicitly.
         """
+        #yearly_mortality_rate = YearlyRate(mortality_rate)
+        if type(mortality_rate) is float or type(mortality_rate) is int:
+            mortality_rate = CrudeRate(mortality_rate)
+        mortality_rate = mortality_rate.get_dtk_rate()
         if node_ids is None:
+            #setting = {"MortalityDistribution": DT._ConstantMortality(yearly_mortality_rate).to_dict()}
             setting = {"MortalityDistribution": DT._ConstantMortality(mortality_rate).to_dict()}
             self.SetDefaultFromTemplate(setting)
         else:
             for node_id in node_ids:
+                #distribution = DT._ConstantMortality(yearly_mortality_rate)
                 distribution = DT._ConstantMortality(mortality_rate)
                 self.get_node(node_id)._set_mortality_distribution(distribution)
 
@@ -483,17 +668,24 @@ class Demographics(BaseInputFile):
         if self.implicits is not None:
             self.implicits.append(DT._set_mortality_age_gender)
 
-    def SetMortalityOverTimeFromData(self, data_csv, base_year):
+    def SetMortalityOverTimeFromData(self, data_csv, base_year, node_ids=[]):
         """
         Set default mortality rates for all nodes or per node. Turn on mortality configs implicitly.
 
         Args:
             data_csv: Path to csv file with the mortality rates by calendar year and age bucket.
             base_year: The calendar year the sim is treating as the base.
+            node_ids: Optional list of node ids to apply this to. Defaults to all.
 
         Returns:
             None
         """
+
+        if base_year<0:
+            raise ValueError( f"User passed negative value of base_year: {base_year}." )
+        if base_year>2050:
+            raise ValueError( f"User passed too large value of base_year: {base_year}." )
+
         # Load csv. Convert rate arrays into DTK-compatiable JSON structures.
         rates = [] # array of arrays, but leave that for a minute
         df = pd.read_csv( data_csv )
@@ -504,7 +696,7 @@ class Demographics(BaseInputFile):
             raise ValueError( f"Failed check that {year_end} is greater than {year_start} in csv dataset." )
         num_years = year_end-year_start+1
         rel_years = list()
-        for year in range(year_start,year_end):
+        for year in range(year_start,year_start+num_years):
             mort_data = list( df[str(year)] )
             # mort_data is the array of mortality rates (by age bin) for _year_
             rates.append( mort_data )
@@ -543,8 +735,15 @@ class Demographics(BaseInputFile):
                 result_units="annual deaths per 1000 individuals"
         )
 
-        self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionMale"] = distrib.to_dict()
-        self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionFemale"] = distrib.to_dict()
+        if not node_ids:
+            self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionMale"] = distrib.to_dict()
+            self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionFemale"] = distrib.to_dict()
+        else:
+            if len(self.nodes) == 1 and len(node_ids)>1:
+                raise ValueError( f"User specified several node ids for single node demographics setup." )
+            for node_id in node_ids:
+                self.get_node(node_id)._set_mortality_distribution_male(distrib)
+                self.get_node(node_id)._set_mortality_distribution_female(distrib)
 
         if self.implicits is not None:
             self.implicits.append(DT._set_mortality_age_gender_year)
@@ -580,7 +779,7 @@ class Demographics(BaseInputFile):
                     "Seaport": 1
                     }
         if birth:
-            self.SetBirthRate( math.log(1.03567)/365 )
+            self.SetBirthRate( YearlyRate(math.log(1.03567)) )
 
     def SetDefaultIndividualProperties(self):
         """
@@ -596,14 +795,14 @@ class Demographics(BaseInputFile):
         self.SetDefaultIndividualAttributes() #Distributions for initialization of immunity, risk heterogeneity, etc.
         self.SetDefaultIndividualProperties() #Individual properties like accessibility, for targeting interventions
 
-    def SetDefaultPropertiesFertMort(self, CrudeBirthRate = 40/1000, CrudeMortRate = 20/1000):
+    def SetDefaultPropertiesFertMort(self, crude_birth_rate = CrudeRate(40), crude_mort_rate = CrudeRate(20)):
         """
         Set a bunch of defaults (birth rates, death rates, age structure, initial susceptibility and initial prevalencec) to sensible values.
         """
         self.SetDefaultNodeAttributes() 
         self.SetDefaultIndividualAttributes() #Distributions for initialization of immunity, risk heterogeneity, etc.
-        self.SetBirthRate(CrudeBirthRate)
-        self.SetMortalityRate(CrudeMortRate)
+        self.SetBirthRate(crude_birth_rate)
+        self.SetMortalityRate(crude_mort_rate)
         #self.SetDefaultIndividualProperties() #Individual properties like accessibility, for targeting interventions
 
     def SetDefaultFromTemplate(self, template, setter_fn=None):
@@ -631,11 +830,22 @@ class Demographics(BaseInputFile):
         if self.implicits is not None:
             self.implicits.append(setter_fn)
 
-    def SetEquilibriumAgeDistFromBirthAndMortRates( self, CrudeBirthRate=40/1000, CrudeMortRate=20/1000 ):
+    def SetEquilibriumAgeDistFromBirthAndMortRates( self, CrudeBirthRate=CrudeRate(40), CrudeMortRate=CrudeRate(20), node_ids=None ):
         """
         Set the inital ages of the population to a sensible equilibrium profile based on the specified input birth and death rates. Note this does not set the fertility and mortality rates.
         """
-        self.SetDefaultFromTemplate( DT._EquilibriumAgeDistFromBirthAndMortRates(CrudeBirthRate,CrudeMortRate), DT._set_age_complex )
+        yearly_birth_rate = YearlyRate(CrudeBirthRate)
+        yearly_mortality_rate = YearlyRate(CrudeMortRate)
+        dist = DT._EquilibriumAgeDistFromBirthAndMortRates(yearly_birth_rate,yearly_mortality_rate)
+        setter_fn = DT._set_age_complex
+        if node_ids is None:
+            self.SetDefaultFromTemplate( dist, setter_fn )
+        else:
+            new_dist = IndividualAttributes.AgeDistribution()
+            dist = new_dist.from_dict( dist["AgeDistribution"] )
+            for node in node_ids:
+                self.get_node(node)._set_age_distribution( dist ) 
+            self.implicits.append(setter_fn)
 
     def SetInitialAgeExponential(self, rate=0.0001068, description=""):
         """
@@ -729,10 +939,14 @@ class Demographics(BaseInputFile):
     def _SetInfectivityMultiplierByNode( self, node_id_to_multplier ):
         raise ValueError( "Not Yet Implemented." )
 
-    def SetFertilityOverTimeFromParams( self, years_region1, years_region2, start_rate, inflection_rate, end_rate ):
+    def SetFertilityOverTimeFromParams( self, years_region1, years_region2, start_rate, inflection_rate, end_rate, node_ids=[] ):
         """
         Set fertility rates that vary over time based on a model with two linear regions. Note that fertility rates
-        use GFR units: babies born per 1000 women of child-bearing age annually.
+        use GFR units: babies born per 1000 women of child-bearing age annually. 
+        
+        Refer to the following diagram.
+        
+        .. figure:: images/fertility_over_time_doc.png
 
         Args:
             years_region1: The number of years covered by the first linear region. So if this represents
@@ -742,6 +956,7 @@ class Demographics(BaseInputFile):
             start_rate: The fertility rate at t=0.
             inflection_rate: The fertility rate in the year where the two linear regions meet.
             end_rate: The fertility rate at the end of the period covered by region1 + region2.
+            node_ids: Optional list of node ids to apply this to. Defaults to all.
 
         Returns:
             rates array (Just in case user wants to do something with them like inspect or plot.)
@@ -765,7 +980,20 @@ class Demographics(BaseInputFile):
             rates.append(rate)
         #  OK, now we put this into the nasty complex fertility structure
         dist = DT.get_fert_dist_from_rates( rates )
-        self.SetDefaultFromTemplate( dist, DT._set_fertility_age_year )
+        if not node_ids:
+            dist_dict = dist.to_dict()
+            if "FertilityDistribution" not in dist_dict:
+                full_dict = { "FertilityDistribution": dist.to_dict() }
+            else:
+                full_dict = dist_dict
+            self.SetDefaultFromTemplate( full_dict, DT._set_fertility_age_year )
+        else:
+            if len(self.nodes) == 1 and len(node_ids)>1:
+                raise ValueError( f"User specified several node ids for single node demographics setup." )
+            for node_id in node_ids:
+                self.get_node(node_id)._set_fertility_distribution( dist ) 
+            if self.implicits is not None:
+                self.implicits.append(DT._set_fertility_age_year )
         return rates
 
     def infer_natural_mortality(

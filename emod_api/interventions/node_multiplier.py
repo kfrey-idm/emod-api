@@ -51,7 +51,7 @@ def new_intervention( camp, new_infectivity=1.0, profile="CONST", **kwargs ):
     """
     intervention = s2c.get_class_with_defaults( "NodeInfectivityMult", camp.schema_path )
     if profile.startswith("CONST"):
-        intervention.Multiplier_By_Duration.Times=[0, 36500] # I'm preferring 100 years to FLT_MAX
+        intervention.Multiplier_By_Duration.Times=[0, 365000] # I'm preferring 1000 years to FLT_MAX
         intervention.Multiplier_By_Duration.Values=[new_infectivity,new_infectivity]
     elif profile.startswith("TRAP"):
         rise_dur = 0

@@ -72,7 +72,8 @@ class ReadOnlyDict(OrderedDict):
                         if type(v) is str and len(v.split(','))>1:
                             v = v.split(',')[0] # pretty arbitrary but least arbitrary of options it seems
                         #print( f"IMPLICITLY setting {k} to {v}." )
-                        self[k] = v
+                        #self[k] = v
+                        self.__setattr__( k, v )
                         if "implicits" not in self: # This should NOT be needed
                             self["implicits"] = [] 
                         self["implicits"].append( key )

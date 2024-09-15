@@ -6,7 +6,7 @@ import json
 
 def seed( camp,
     Start_Day: int,
-    Coverage: float = 0.01,
+    Coverage: float,
     Target_Props = None,
     Node_Ids = None,
     Tot_Rep: int = 1,
@@ -22,7 +22,7 @@ def seed( camp,
     Parameters:
         camp: Central campaign builder object.
         Start_Day: Simulation timestep when outbreak should occur. Required.
-        Coverage: Fraction of population to reach. Defaults to 1%.
+        Coverage: Fraction of population to reach. No default.
         Target_Props: Individual Properties to limit the seeding to.
         Node_Ids: Nodes to target. Optional. Defaults to all.
         Tot_Rep: Number of times to "re-seed". Optional. Defaults to just once.

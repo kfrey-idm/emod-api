@@ -122,6 +122,77 @@ class IndividualAttributes(Updateable):
                 self.distribution_values = age_distribution.get("DistributionValues")
                 self.result_scale_factor = age_distribution.get("ResultScaleFactor")
                 self.result_values = age_distribution.get("ResultValues")
+                self.num_dist_axes = age_distribution.get("NumDistributionAxes")
+                self.results_units = age_distribution.get("ResultUnits")
+            return self
+
+    class FertilityDistribution(Updateable):
+        def __init__(self,
+                     axis_names: List[str] = None,
+                     axis_scale_factors: List[float] = None,
+                     axis_units=None,
+                     num_distribution_axes=None,
+                     num_population_axes=None,
+                     num_population_groups=None,
+                     population_groups=None,
+                     result_scale_factor=None,
+                     result_units=None,
+                     result_values=None):
+            super().__init__()
+            self.axis_names = axis_names
+            self.axis_scale_factors = axis_scale_factors
+            self.axis_units = axis_units
+            self.num_distribution_axes = num_distribution_axes
+            self.num_population_axes = num_population_axes
+            self.num_population_groups = num_population_groups
+            self.population_groups = population_groups
+            self.result_scale_factor = result_scale_factor
+            self.result_units = result_units
+            self.result_values = result_values
+
+        def to_dict(self) -> dict:
+            fertility_distribution = self.parameter_dict
+
+            if self.axis_names is not None:
+                fertility_distribution.update({"AxisNames": self.axis_names})
+
+            if self.axis_scale_factors is not None:
+                fertility_distribution.update({"AxisScaleFactors": self.axis_scale_factors})
+
+            if self.axis_units is not None:
+                fertility_distribution.update({"AxisUnits": self.axis_units})
+
+            if self.num_distribution_axes is not None:
+                fertility_distribution.update({"NumDistributionAxes": self.num_distribution_axes})
+
+            if self.num_population_groups is not None:
+                fertility_distribution.update({"NumPopulationGroups": self.num_population_groups})
+
+            if self.population_groups is not None:
+                fertility_distribution.update({"PopulationGroups": self.population_groups})
+
+            if self.result_scale_factor is not None:
+                fertility_distribution.update({"ResultScaleFactor": self.result_scale_factor})
+
+            if self.result_units is not None:
+                fertility_distribution.update({"ResultUnits": self.result_units})
+
+            if self.result_values is not None:
+                fertility_distribution.update({"ResultValues": self.result_values})
+
+            return fertility_distribution
+
+        def from_dict(self, fertility_distribution: dict):
+            if fertility_distribution:
+                self.axis_names = fertility_distribution.get("AxisNames")
+                self.axis_scale_factors = fertility_distribution.get("AxisScaleFactors")
+                self.axis_units = fertility_distribution.get("AxisUnits")
+                self.num_distribution_axes = fertility_distribution.get("NumDistributionAxes")
+                self.num_population_groups = fertility_distribution.get("NumPopulationGroups")
+                self.population_groups = fertility_distribution.get("PopulationGroups")
+                self.result_scale_factor = fertility_distribution.get("ResultScaleFactor")
+                self.result_units = fertility_distribution.get("ResultUnits")
+                self.result_values = fertility_distribution.get("ResultValues")
             return self
 
     class MortalityDistribution(Updateable):
@@ -181,16 +252,18 @@ class IndividualAttributes(Updateable):
             return mortality_distribution
 
         def from_dict(self, mortality_distribution: dict):
-            if mortality_distribution:
-                self.axis_names = mortality_distribution.get("AxisNames")
-                self.axis_scale_factors = mortality_distribution.get("AxisScaleFactors")
-                self.axis_units = mortality_distribution.get("AxisUnits")
-                self.num_distribution_axes = mortality_distribution.get("NumDistributionAxes")
-                self.num_population_groups = mortality_distribution.get("NumPopulationGroups")
-                self.population_groups = mortality_distribution.get("PopulationGroups")
-                self.result_scale_factor = mortality_distribution.get("ResultScaleFactor")
-                self.result_units = mortality_distribution.get("ResultUnits")
-                self.result_values = mortality_distribution.get("ResultValues")
+            if mortality_distribution is None:
+                return None
+
+            self.axis_names = mortality_distribution.get("AxisNames")
+            self.axis_scale_factors = mortality_distribution.get("AxisScaleFactors")
+            self.axis_units = mortality_distribution.get("AxisUnits")
+            self.num_distribution_axes = mortality_distribution.get("NumDistributionAxes")
+            self.num_population_groups = mortality_distribution.get("NumPopulationGroups")
+            self.population_groups = mortality_distribution.get("PopulationGroups")
+            self.result_scale_factor = mortality_distribution.get("ResultScaleFactor")
+            self.result_units = mortality_distribution.get("ResultUnits")
+            self.result_values = mortality_distribution.get("ResultValues")
             return self
 
     def __init__(self,
@@ -210,7 +283,10 @@ class IndividualAttributes(Updateable):
                  migration_heterogeneity_distribution_flag=None,
                  migration_heterogeneity_distribution1=None,
                  migration_heterogeneity_distribution2=None,
+                 fertility_distribution=None,
                  mortality_distribution=None,
+                 mortality_distribution_male=None,
+                 mortality_distribution_female=None,
                  susceptibility_distribution=None
                  ):
         super().__init__()
@@ -230,7 +306,10 @@ class IndividualAttributes(Updateable):
         self.migration_heterogeneity_distribution_flag = migration_heterogeneity_distribution_flag
         self.migration_heterogeneity_distribution1 = migration_heterogeneity_distribution1
         self.migration_heterogeneity_distribution2 = migration_heterogeneity_distribution2
+        self.fertility_distribution = fertility_distribution
         self.mortality_distribution = mortality_distribution
+        self.mortality_distribution_male = mortality_distribution_male
+        self.mortality_distribution_female = mortality_distribution_female
         self.susceptibility_distribution = susceptibility_distribution
 
     def to_dict(self) -> dict:
@@ -284,9 +363,17 @@ class IndividualAttributes(Updateable):
         if self.susceptibility_distribution is not None:
             individual_attributes.update({"SusceptibilityDistribution": self.susceptibility_distribution.to_dict()})
 
+        if self.fertility_distribution is not None:
+            individual_attributes.update({"FertilityDistribution": self.fertility_distribution.to_dict()})
+
         if self.mortality_distribution is not None:
             individual_attributes.update({"MortalityDistribution": self.mortality_distribution.to_dict()})
 
+        if self.mortality_distribution_male is not None:
+            individual_attributes.update({"MortalityDistributionMale": self.mortality_distribution_male.to_dict()})
+
+        if self.mortality_distribution_female is not None:
+            individual_attributes.update({"MortalityDistributionFemale": self.mortality_distribution_female.to_dict()})
         return individual_attributes
 
     def from_dict(self, individual_attributes: dict):
@@ -308,8 +395,14 @@ class IndividualAttributes(Updateable):
             "MigrationHeterogeneityDistributionFlag")
         self.migration_heterogeneity_distribution1 = individual_attributes.get("MigrationHeterogeneityDistribution1")
         self.migration_heterogeneity_distribution2 = individual_attributes.get("MigrationHeterogeneityDistribution2")
+        self.fertility_distribution = IndividualAttributes.FertilityDistribution().from_dict(
+            individual_attributes.get("FertilityDistribution"))
         self.mortality_distribution = IndividualAttributes.MortalityDistribution().from_dict(
             individual_attributes.get("MortalityDistribution"))
+        self.mortality_distribution_male = IndividualAttributes.MortalityDistribution().from_dict(
+            individual_attributes.get("MortalityDistributionMale"))
+        self.mortality_distribution_female = IndividualAttributes.MortalityDistribution().from_dict(
+            individual_attributes.get("MortalityDistributionFemale"))
         return self
 
 

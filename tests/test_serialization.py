@@ -6,11 +6,31 @@ import emod_api.serialization.dtkFileSupport as support
 import os
 import tempfile
 import unittest
+import time
 
 WORKING_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 
 class TestReadVersionOne(unittest.TestCase):
+
+    def check_keys_dtkeader(self, header, reference_header_keys):
+        for key in reference_header_keys:
+            self.assertIsNotNone(header.get(key))
+        return
+
+    def test_dtkheader(self):
+        header_1_keys = [
+            'author',
+            'bytecount',
+            'chunkcount',
+            'chunksizes',
+            'compressed',
+            'date',
+            'tool',
+            'version']
+        self.check_keys_dtkeader(dft.DtkHeader(), header_1_keys)
+        return
+
     def test_reading_uncompressed_file(self):
 
         jason_text = '{"simulation":{"__class__":"SimulationPython","serializationMask":0,"nodes":[]}}'
@@ -213,6 +233,7 @@ class TestReadVersionOne(unittest.TestCase):
         dft.write(source, filename)
 
         dest = dft.read(filename)
+        os.remove(filename)
         self.assertEqual("dtkFileTests", dest.author)
         self.assertEqual(dft.SNAPPY if support.SNAPPY_SUPPORT else dft.NONE, dest.compression)
         simulation = dest.simulation
@@ -231,11 +252,25 @@ class TestReadVersionOne(unittest.TestCase):
         self.assertEqual(1, individual.suid.id)
         self.assertEqual(9588.48, individual.m_age)
         self.assertEqual(0, individual.m_gender)
-        os.remove(filename)
         return
 
 
-class TestReadVersionTwo(unittest.TestCase):
+class TestReadVersionTwo(TestReadVersionOne):
+
+    def test_dtkheader_2(self):
+        header_2_keys = [
+            'author',
+            'bytecount',
+            'chunkcount',
+            'chunksizes',
+            'compressed',
+            'date',
+            'tool',
+            'version',
+            'engine']
+        self.check_keys_dtkeader(dft.DtkFileV2().header, header_2_keys)
+        return
+
     def test_reading_file(self):
         dtk = dft.read(
             os.path.join(WORKING_DIRECTORY, "data", "serialization", "version2.dtk")
@@ -408,6 +443,7 @@ class TestReadVersionTwo(unittest.TestCase):
         dft.write(source, filename)
 
         dest = dft.read(filename)
+        os.remove(filename)
         self.assertEqual("dtkFileTests", dest.author)
         self.assertEqual(dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4, dest.compression)
         simulation = dest.simulation
@@ -426,12 +462,25 @@ class TestReadVersionTwo(unittest.TestCase):
         self.assertEqual(1, individual.suid.id)
         self.assertEqual(9588.48, individual.m_age)
         self.assertEqual(0, individual.m_gender)
-        os.remove(filename)
-
         return
 
 
-class TestReadVersionThree(unittest.TestCase):
+class TestReadVersionThree(TestReadVersionTwo):
+
+    def test_dtkheader_3(self):
+        header_3_keys = [
+            'author',
+            'bytecount',
+            'chunkcount',
+            'chunksizes',
+            'compressed',
+            'date',
+            'tool',
+            'version',
+            'engine']
+        self.check_keys_dtkeader(dft.DtkFileV3().header, header_3_keys)
+        return
+
     def test_reading_file(self):
         dtk = dft.read(
             os.path.join(WORKING_DIRECTORY, "data", "serialization", "version3.dtk")
@@ -599,6 +648,7 @@ class TestReadVersionThree(unittest.TestCase):
         dft.write(source, filename)
 
         dest = dft.read(filename)
+        os.remove(filename)
         self.assertEqual("dtkFileTests", dest.author)
         self.assertEqual(dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4, dest.compression)
         simulation = dest.simulation
@@ -617,12 +667,25 @@ class TestReadVersionThree(unittest.TestCase):
         self.assertEqual(1, individual.suid.id)
         self.assertEqual(9588.48, individual.m_age)
         self.assertEqual(0, individual.m_gender)
-        os.remove(filename)
-
         return
 
 
-class TestReadVersionFour(unittest.TestCase):
+class TestReadVersionFour(TestReadVersionThree):
+
+    def test_dtkheader_4(self):
+        header_4_keys = [
+            'author',
+            'bytecount',
+            'chunkcount',
+            'chunksizes',
+            'compressed',
+            'date',
+            'tool',
+            'version',
+            'engine']
+        self.check_keys_dtkeader(dft.DtkFileV4().header, header_4_keys)
+        return
+
     def test_reading_file(self):
         dtk = dft.read(
             os.path.join(WORKING_DIRECTORY, "data", "serialization", "version4.dtk")
@@ -656,8 +719,7 @@ class TestReadVersionFour(unittest.TestCase):
         self.assertEqual(False, human.m_is_infected)
         return
 
-    def test_round_trip(self):
-        source = dft.DtkFileV4()
+    def round_trip(self, source):
         source.author = "dtkFileTests"
         source.compression = dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4
         simulation = support.SerialObject(
@@ -794,6 +856,7 @@ class TestReadVersionFour(unittest.TestCase):
         dft.write(source, filename)
 
         dest = dft.read(filename)
+        os.remove(filename)
         self.assertEqual("dtkFileTests", dest.author)
         self.assertEqual(dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4, dest.compression)
         simulation = dest.simulation
@@ -812,14 +875,16 @@ class TestReadVersionFour(unittest.TestCase):
         self.assertEqual(1, individual.suid.id)
         self.assertEqual(9588.48, individual.m_age)
         self.assertEqual(0, individual.m_gender)
-        os.remove(filename)
+        return
 
+    def test_round_trip(self):
+        source = dft.DtkFileV4()
+        self.round_trip(source)
         return
 
 
 class TestReadWrite(unittest.TestCase):
-    def test_NullPtr(self):
-        source = dft.DtkFileV4()
+    def NullPtr(self, source):
         source.compression = dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4
         simulation = support.SerialObject(
             {
@@ -852,11 +917,17 @@ class TestReadWrite(unittest.TestCase):
         dft.write(source, filename)
 
         dest = dft.read(filename)
+        os.remove(filename)
         self.assertEqual(dft.SNAPPY if support.SNAPPY_SUPPORT else dft.LZ4, dest.compression)
         self.assertEqual(dest.simulation.m_simConfigObj, support.NullPtr())
         individual = dest.nodes[0].individualHumans[0]
         self.assertEqual(individual.interventions, support.NullPtr())
-        os.remove(filename)
+        return
+
+    def test_NullPtr(self):
+        source = dft.DtkFileV4()
+        self.NullPtr(source)
+        return
 
 
 class TestReadingSadPath(unittest.TestCase):
@@ -1118,6 +1189,124 @@ class TestRegressions(unittest.TestCase):
         self.assertTrue("nodes" not in simulation)
 
         return
+
+
+class TestReadVersion5(TestReadVersionFour, TestReadWrite):
+
+    def test_dtkheader_5(self):
+        header_5_keys = [
+            'author',
+            'bytecount',
+            'chunkcount',
+            'chunksizes',
+            'compressed',
+            'date',
+            'tool',
+            'version',
+            'engine',
+            'emod_info']
+        self.check_keys_dtkeader(dft.DtkFileV5().header, header_5_keys)
+        return
+
+    def test_round_trip(self):
+        # check if header version 5 passes version 4 test
+        source = dft.DtkFileV5()
+        self.round_trip(source)
+        return
+
+    def test_NullPtr(self):
+        # check if header version 5 passes version 4 test
+        source = dft.DtkFileV5()
+        self.NullPtr(source)
+        return
+
+    def test_header5(self):
+        # check default version 5 header, skip date
+        reference_header5 = {
+            'author': "unknown",
+            'bytecount': 0,
+            'chunkcount': 0,
+            'chunksizes': [],
+            'compressed': True,
+            # 'date': None,  # date with seconds, might have changed at point of testing
+            'engine': "LZ4",
+            'tool': "dtkFileTools.py",
+            'version': 5,
+            'emod_info': {
+                'emod_sccs_date': "Mon Jan 1 00:00:00 1970",
+                'emod_major_version': 0,
+                'emod_minor_version': 0,
+                'emod_revision_number': 0,
+                'ser_pop_major_version': 0,
+                'ser_pop_minor_version': 0,
+                'ser_pop_patch_version': 0,
+                'emod_build_date': "Mon Jan 1 00:00:00 1970",
+                'emod_builder_name': "",
+                'emod_sccs_branch': 0
+            }
+        }
+        header5 = dft.DtkFileV5().header
+        test_date = time.strptime(header5['date'])  # throws ValueError if date format is wrong
+        del header5["date"]
+        self.assertEqual(header5.version, 5)
+        self.assertDictEqual(header5, reference_header5)
+
+        header5_emod_info = dft.DtkFileV5().header['emod_info']
+        time.strptime(header5_emod_info.get('emod_sccs_date'))
+        return
+
+    def test_write_read_header5(self):
+        # create a very basic sp file with header version 5, save it to disk, load it, and check header and contents
+        header5_extension = {
+            'emod_info': {
+                'version': 5,
+                'emod_major_version': 2,
+                'emod_minor_version': 3,
+                'emod_revision_number': 4,
+                'ser_pop_major_version': 5,
+                'ser_pop_minor_version': 6,
+                'ser_pop_patch_version': 7,
+                'emod_build_date': "Fri Oct 28 00:00:00 1955",
+                'emod_builder_name': "",
+                'emod_sccs_branch': 10,
+                'emod_sccs_date': "Sun Jun 23 00:00:00 1912"
+            }
+        }
+
+        reference_header5 = dft.DtkHeader()
+        reference_header5.update(header5_extension)
+        dummy_simulation = {"dummy_class": "Simulation", "nodes": []}
+        dummy_node_1 = {"node_1": "Node_1", "individualHumans": []}
+        dummy_node_2 = {"node_2": "Node_2", "individualHumans": []}
+
+        source = dft.DtkFileV5(header=reference_header5)
+        simulation = support.SerialObject(dummy_simulation)
+        node_1 = support.SerialObject(dummy_node_1)
+        node_2 = support.SerialObject(dummy_node_2)
+        source.objects.append(simulation)
+        source.objects.append(node_1)
+        source.objects.append(node_2)
+        handle, filename = tempfile.mkstemp()
+        os.close(handle)
+        dft.write(source, filename)
+
+        dest = dft.read(filename)
+        os.remove(filename)
+
+        for key in reference_header5:
+            self.assertEqual(dest.header[key], reference_header5[key])
+
+        self.assertEqual(dest.simulation.dummy_class, "Simulation")
+        self.assertEqual(dest.nodes[0], dummy_node_1)
+        self.assertEqual(dest.nodes[0].individualHumans, [])
+        self.assertEqual(dest.nodes[1], dummy_node_2)
+        self.assertEqual(dest.nodes[1].individualHumans, [])
+
+        test_emod_build_date = time.strptime(dest.header['emod_info']['emod_build_date'])
+        self.assertEqual(test_emod_build_date, time.strptime(header5_extension['emod_info']["emod_build_date"]))
+
+        test_emod_sccs_date = time.strptime(dest.header['emod_info']['emod_sccs_date'])
+        self.assertEqual(test_emod_sccs_date, time.strptime(header5_extension['emod_info']["emod_sccs_date"]))
 
 
 if __name__ == "__main__":

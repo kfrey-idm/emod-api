@@ -73,7 +73,8 @@ class DemoConfigTest(unittest.TestCase):
         demog.SetBirthRate(0.7)
         self.assertEqual(len(demog.implicits), 2)
         demog.implicits[-1](self.config)
-        self.assertEqual(self.config.parameters.Enable_Birth, 1)
+        #self.assertEqual(self.config.parameters.Enable_Birth, 1) # This should get set also during finalize
+        self.assertEqual(self.config.parameters.Birth_Rate_Dependence, "POPULATION_DEP_RATE")
 
     def test_set_mortality_rate_config(self):
         for index in range(2):

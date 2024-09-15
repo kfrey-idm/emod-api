@@ -593,8 +593,10 @@ def StandardDiagnostic(
             intervention.Positive_Diagnosis_Config = BroadcastEvent( camp, Positive_Diagnosis_Event )
             # The line below works fine instead of the line above but it just makes testing harder.
             #intervention.Positive_Diagnosis_Event = camp.get_send_trigger( Positive_Diagnosis_Event, old=old_adhoc_trigger_style )
-            intervention.Event_Trigger_Distributed = Event_Trigger_Distributed
-            intervention.Event_Trigger_Expired = Event_Trigger_Expired
+            if Event_Trigger_Distributed:
+                intervention.Event_Trigger_Distributed = Event_Trigger_Distributed
+            if Event_Trigger_Expired:
+                intervention.Event_Trigger_Expired = Event_Trigger_Expired
         else:
             intervention.Positive_Diagnosis_Config = Positive_Diagnosis_Intervention
 
