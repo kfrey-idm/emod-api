@@ -26,6 +26,9 @@ def main(options):
     if options.examine:
         examine_migration_file(options.examine)
 
+    if options.from_csv:
+        create_migration_file_from_csv()
+
     return
 
 
@@ -180,6 +183,49 @@ def examine_migration_file(filename):
     return
 
 
+def create_migration_file_from_csv():
+    """
+        Creates migration object using from_csv() function and writes out migration file consumable by EMOD
+        using to_file() function.
+
+    Returns:
+        Nothing
+    """
+    # filename - path to the csv file you're converting to EMOD-consumable migration file
+    # the csv file needs to have headings of "source", "destination", and "rate"
+    # with "source" and "destination" being NodeIDs from the demographics file you'll be using with the migration files
+
+    # id_ref - sets the IdReference metadata parameter. It needs to match the IdReference metadata parameter
+    # in your demographics file, otherwise simulation will not run.
+
+    # mig_type - sets the MigrationType metadata parameter, use the Migration enum parameters to set
+    #     "LOCAL_MIGRATION": LOCAL
+    #     "AIR_MIGRATION": AIR
+    #     "REGIONAL_MIGRATION": REGIONAL
+    #     "SEA_MIGRATION": SEA
+    #     "FAMILY_MIGRATION": FAMILY
+    #     "INTERVENTION_MIGRATION": INTERVENTION
+    # or ints 1-6 respectively
+
+    migration_type = Migration.SEA
+    migration_object = migration.from_csv(filename=Path("migration_csv_example.csv"),
+                                          id_ref="Gridded world grump2.5arcmin",
+                                          mig_type=migration_type)
+
+    # binaryfile - path and name that will become the name and location of the migration file.
+
+    # metafile - path that will become the name and location of the meta information file for the migration file.
+    # they should be in the same folder and be named the same (+.json extension). Best to leave this blank.
+    # It will be automatically created for you
+
+    # value_limit - limit on number of destination values to write for each source node (default = 100)
+
+    migration_object.to_file(binaryfile=r"..\lake_walk_file",
+                             # Path("lake_walk_file") also works for the same location folder
+                             metafile=None, value_limit=15)
+
+    return
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-b", "--basic", action="store_true", help="create a basic migration file")
@@ -187,6 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--gender", action="store_true", help="create a migration file with gender dependency")
     parser.add_argument("--both", action="store_true", help="create a migration file with both age and gender dependency")
     parser.add_argument("-e", "--examine", type=Path, help="display metadata for the given file")
+    parser.add_argument("-c", "--from_csv", action="store_true", help="create migration file from csv file")
     args = parser.parse_args()
     if len(sys.argv) == 1:
         print( "You need to specify one of the arguments. Run -h to see help." )

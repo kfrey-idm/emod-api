@@ -5,6 +5,12 @@ import pdb
 from collections import OrderedDict
 
 schema_cache = None
+show_warnings = True
+def disable_warnings():
+    """
+    Turn off warnings to console. These can get very verbose.
+    """
+    show_warnings = False
 
 class ReadOnlyDict(OrderedDict):
     def __missing__(self, key):
@@ -79,7 +85,8 @@ class ReadOnlyDict(OrderedDict):
                         self["implicits"].append( key )
 
             if "default" in self["schema"][key] and self["schema"][key]["default"] == value and value == self[key]:
-                #print( f"WARNING: You're setting {key} to default value of {value}. Not necessary." )
+                #if show_warnings:
+                    #print( f"WARNING: You're setting {key} to default value of {value}. Not necessary." )
                 return
 
         self[key] = value
@@ -122,7 +129,8 @@ class ReadOnlyDict(OrderedDict):
             if key in [ "schema", "explicits", "implicits" ]:
                 continue
             elif key not in self["schema"]:
-                 print( f"WARNING: During schema-based param purge, {key} not in schema." )
+                if show_warnings:
+                    print( f"WARNING: During schema-based param purge, {key} not in schema." )
             elif "depends-on" in self["schema"][key]:
                 def purge_key( key ):
                     #print( f"VERBOSE: Considering whether to purge {key}." )
@@ -181,6 +189,15 @@ class ReadOnlyDict(OrderedDict):
             raise ValueError( f"ERROR: Something bad happened during finalize: {ex}." )
         return self
 
+
+def uses_old_waning(schema_path=None):
+    global schema_cache
+    if schema_path is not None:
+        schema_cache = None
+    waning_effects = get_schema(schema_path)["idmTypes"]["idmType:WaningEffect"].keys()
+    return any(["WaningEffect" in k for k in waning_effects])
+
+
 def get_default_for_complex_type( schema, idmtype ):
     """
         This function used to be more involved and dumb but now it's a passthrough to get_class_with_defaults.
@@ -188,10 +205,7 @@ def get_default_for_complex_type( schema, idmtype ):
     """
     return get_class_with_defaults( idmtype, schema )
 
-def get_class_with_defaults( classname, schema_path=None ):
-    """
-        Returns the default config for a datatype in the schema.
-    """
+def get_schema( schema_path=None ):
     global schema_cache
     #print( f"VERBOSE: get_class_with_defaults called with type(schema_path) = {type(schema_path)}." )
     if schema_cache is None:
@@ -209,6 +223,13 @@ def get_class_with_defaults( classname, schema_path=None ):
             schema = schema_path
     else:
         schema = schema_cache
+    return schema
+
+def get_class_with_defaults( classname, schema_path=None ):
+    """
+        Returns the default config for a datatype in the schema.
+    """
+    schema = get_schema(schema_path)
 
     #print( f"DEBUG: get_class_with_defaults called with {classname} and {schema_path}." )
     ret_json = {} # there are some types that are actually arrays!?
@@ -295,6 +316,12 @@ def get_class_with_defaults( classname, schema_path=None ):
             print( errMsg )
             raise ValueError( errMsg )
             
+    elif classname == "WaningEffect":
+        schema_blob = schema["idmTypes"]["idmType:WaningEffect"]
+        ret_json["class"] = classname
+        for effect in schema_blob.keys():
+            ret_json[effect] = get_default(schema_blob, effect, schema["idmTypes"])
+
     elif "waning" in classname.lower():
         if classname in schema["idmTypes"]["idmType:WaningEffect"].keys():
             schema_blob = schema["idmTypes"]["idmType:WaningEffect"][classname]
@@ -335,7 +362,8 @@ def get_class_with_defaults( classname, schema_path=None ):
                         else:
                             print( f"'type' not found in schema_blob[{ns_key}]." )
                     else:
-                        print( f"WARNING: Not setting default for NodeSet key {ns_key}." )
+                        if show_warnings:
+                            print( f"WARNING: Not setting default for NodeSet key {ns_key}." )
                 except Exception as ex:
                     print( f"ERROR: Exception caught while processing {ns_key} in NodeSet family." )
                     print( "ERROR: " + str( ex ) )
@@ -369,9 +397,10 @@ def get_class_with_defaults( classname, schema_path=None ):
                     try:
                         if "default" in schema_blob[iv_key]:
                             ret_json[iv_key] = schema_blob[iv_key]["default"]
-                        # Going to allow default dict and lists based on type or even name?
-                        elif "Config" in iv_key:
+                            
+                        elif "_Config" in iv_key and iv_key.count( "_" ) > 1: # this sucks, looking for things like Actual_IndividualIntervention_Config and Positive_Diagnosis_Config
                             ret_json[iv_key] = {}
+
                         elif "type" in schema_blob[iv_key]:
                             idmtype = schema_blob[iv_key]["type"]
                             if "Vector" in idmtype:
@@ -386,6 +415,9 @@ def get_class_with_defaults( classname, schema_path=None ):
                                 print( f"Don't know how to make default for type {idmtype}." )
                         elif iv_key not in [ "Sim_Types" ]: # very small whitelist of keys that are allowed to be ignored by this process.
                             print( f"Don't know how to make default for key {iv_key}." )
+
+                        #if "Config" in iv_key:
+                            #print( f"Would have just created dictionary for {iv_key}." )
 
                     except Exception as ex:
                         print( f"ERROR: Exception caught while processing {iv_key} in Intervention family." )

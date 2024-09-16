@@ -2,8 +2,14 @@
 
 """Module for reading InsetChart.json channels."""
 
+from csv import writer as CsvWriter
 from datetime import datetime
 import json
+from pathlib import Path
+from typing import Dict, List, Union
+import warnings
+
+import pandas as pd
 
 _CHANNELS = "Channels"
 _DTK_VERSION = "DTK_Version"
@@ -36,7 +42,7 @@ _HEADER = "Header"
 class Header(object):
 
     # Allow callers to send an arbitrary dictionary, potentially, with extra key:value pairs.
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
 
         self._channelCount = kwargs[_CHANNELS] if kwargs and _CHANNELS in kwargs else 0
         self._dtkVersion = (
@@ -73,7 +79,7 @@ class Header(object):
         return self._channelCount
 
     @num_channels.setter
-    def num_channels(self, count: int):
+    def num_channels(self, count: int) -> None:
         """> 0"""
         assert count > 0, "numChannels must be > 0"
         self._channelCount = count
@@ -84,16 +90,17 @@ class Header(object):
         return self._dtkVersion
 
     @dtk_version.setter
-    def dtk_version(self, version: str):
+    def dtk_version(self, version: str) -> None:
         """major.minor"""
         self._dtkVersion = f"{version}"
+        return
 
     @property
     def time_stamp(self) -> str:
         return self._timeStamp
 
     @time_stamp.setter
-    def time_stamp(self, timestamp: (datetime, str)):
+    def time_stamp(self, timestamp: Union[datetime, str]) -> None:
         """datetime or string"""
         self._timeStamp = (
             f"{timestamp:%a %B %d %Y %H:%M:%S}"
@@ -107,7 +114,7 @@ class Header(object):
         return self._reportType
 
     @report_type.setter
-    def report_type(self, report_type: str):
+    def report_type(self, report_type: str) -> None:
         self._reportType = f"{report_type}"
         return
 
@@ -116,7 +123,7 @@ class Header(object):
         return self._reportVersion
 
     @report_version.setter
-    def report_version(self, version: str):
+    def report_version(self, version: str) -> None:
         self._reportVersion = f"{version}"
         return
 
@@ -126,7 +133,7 @@ class Header(object):
         return self._stepSize
 
     @step_size.setter
-    def step_size(self, size: int):
+    def step_size(self, size: int) -> None:
         """>= 1"""
         self._stepSize = int(size)
         assert self._stepSize >= 1, "stepSize must be >= 1"
@@ -138,7 +145,7 @@ class Header(object):
         return self._startTime
 
     @start_time.setter
-    def start_time(self, time: int):
+    def start_time(self, time: int) -> None:
         """>= 0"""
         self._startTime = int(time)
         assert self._startTime >= 0, "startTime must be >= 0"
@@ -150,13 +157,13 @@ class Header(object):
         return self._numTimeSteps
 
     @num_time_steps.setter
-    def num_time_steps(self, count: int):
+    def num_time_steps(self, count: int) -> None:
         """>= 1"""
         self._numTimeSteps = int(count)
         assert self._numTimeSteps > 0, "numTimeSteps must be > 0"
         return
 
-    def as_dictionary(self) -> dict:
+    def as_dictionary(self) -> Dict:
         # https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression
         return {
             **{
@@ -174,7 +181,8 @@ class Header(object):
 
 
 class Channel(object):
-    def __init__(self, title, units, data):
+
+    def __init__(self, title: str, units: str, data: List) -> None:
         self._title = title
         self._units = units
         self._data = data
@@ -185,7 +193,7 @@ class Channel(object):
         return self._title
 
     @title.setter
-    def title(self, title: str):
+    def title(self, title: str) -> None:
         self._title = f"{title}"
         return
 
@@ -194,7 +202,7 @@ class Channel(object):
         return self._units
 
     @units.setter
-    def units(self, units: str):
+    def units(self, units: str) -> None:
         self._units = f"{units}"
         return
 
@@ -206,16 +214,17 @@ class Channel(object):
         """Index into channel data by time step"""
         return self._data[item]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         """Update channel data by time step"""
         self._data[key] = value
         return
 
-    def as_dictionary(self) -> dict:
+    def as_dictionary(self) -> Dict:
         return {self.title: {_UNITS: self.units, _DATA: list(self.data)}}
 
 
 class ChannelReport(object):
+
     def __init__(self, filename: str = None, **kwargs):
 
         if filename is not None:
@@ -238,7 +247,7 @@ class ChannelReport(object):
         return self._header.dtk_version
 
     @dtk_version.setter
-    def dtk_version(self, version: str):
+    def dtk_version(self, version: str) -> None:
         self._header.dtk_version = version
         return
 
@@ -247,7 +256,7 @@ class ChannelReport(object):
         return self._header.time_stamp
 
     @time_stamp.setter
-    def time_stamp(self, time_stamp: (datetime, str)):
+    def time_stamp(self, time_stamp: Union[datetime, str]) -> None:
         self._header.time_stamp = time_stamp
         return
 
@@ -256,7 +265,7 @@ class ChannelReport(object):
         return self._header.report_type
 
     @report_type.setter
-    def report_type(self, report_type: str):
+    def report_type(self, report_type: str) -> None:
         self._header.report_type = report_type
         return
 
@@ -266,7 +275,7 @@ class ChannelReport(object):
         return self._header.report_version
 
     @report_version.setter
-    def report_version(self, version: str):
+    def report_version(self, version: str) -> None:
         self._header.report_version = version
         return
 
@@ -276,7 +285,7 @@ class ChannelReport(object):
         return self._header.step_size
 
     @step_size.setter
-    def step_size(self, size: int):
+    def step_size(self, size: int) -> None:
         """>= 1"""
         self._header.step_size = size
         return
@@ -287,7 +296,7 @@ class ChannelReport(object):
         return self._header.start_time
 
     @start_time.setter
-    def start_time(self, time: int):
+    def start_time(self, time: int) -> None:
         """>= 0"""
         self._header.start_time = time
         return
@@ -310,11 +319,11 @@ class ChannelReport(object):
         return len(self._channels)
 
     @property
-    def channel_names(self) -> list:
-        return sorted(self._channels.keys())
+    def channel_names(self) -> List:
+        return sorted(self._channels)
 
     @property
-    def channels(self) -> dict:
+    def channels(self) -> Dict:
         """Channel objects keyed on channel name/title"""
         return self._channels
 
@@ -322,15 +331,14 @@ class ChannelReport(object):
         """Return Channel object by channel name/title"""
         return self._channels[item]
 
-    def as_dataframe(self):
-        import pandas as pd
-
+    def as_dataframe(self) -> pd.DataFrame:
+        """Return underlying data as a Pandas DataFrame"""
         dataframe = pd.DataFrame(
             {key: self.channels[key].data for key in self.channel_names}
         )
         return dataframe
 
-    def write_file(self, filename: str, indent: int = 0, separators=(",", ":")):
+    def write_file(self, filename: str, indent: int = 0, separators=(",", ":")) -> None:
         """Write inset chart to specified text file."""
 
         # in case this was generated locally, lets do some consistency checks
@@ -343,7 +351,7 @@ class ChannelReport(object):
         self._header.num_channels = len(self._channels)
         self.num_time_steps = len(self._channels[self.channel_names[0]].data)
 
-        with open(filename, "w") as file:
+        with open(filename, "w", encoding="utf-8") as file:
             channels = {}
             for _, channel in self.channels.items():
                 # https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression
@@ -353,8 +361,9 @@ class ChannelReport(object):
 
         return
 
-    def _from_file(self, filename: str):
-        def validate_file(_jason):
+    def _from_file(self, filename: str) -> None:
+
+        def validate_file(_jason) -> None:
 
             assert _HEADER in _jason, f"'{filename}' missing '{_HEADER}' object."
             assert (
@@ -373,7 +382,7 @@ class ChannelReport(object):
 
             return
 
-        def validate_channel(_channel, _title, _header):
+        def validate_channel(_channel, _title, _header) -> None:
 
             assert _UNITS in _channel, f"Channel '{_title}' missing '{_UNITS}' entry."
             assert _DATA in _channel, f"Channel '{_title}' missing '{_DATA}' entry."
@@ -398,5 +407,30 @@ class ChannelReport(object):
                 units = channel[_UNITS]
                 data = channel[_DATA]
                 self._channels[title] = Channel(title, units, data)
+
+        return
+
+    def to_csv(self, filename: Union[str, Path], channel_names: List[str]=None, transpose: bool=False) -> None:
+
+        """
+        Write each channel from the report to a row, CSV style, in the given file.
+
+        Channel name goes in the first column, channel data goes into subsequent columns.
+
+        Args:
+            filename: string or path specifying destination file
+            channel_names: optional list of channels (by name) to write to the file
+            transpose: write channels as columns rather than rows
+        """
+
+        if channel_names is None:
+            channel_names = self.channel_names
+
+        if not transpose:   # default
+            data_frame = pd.DataFrame([[channel_name] + list(self[channel_name]) for channel_name in channel_names])
+            # data_frame = pd.DataFrame(([channel_name] + list(self[channel_name]) for channel_name in channel_names))
+            data_frame.to_csv(filename, header=False, index=False)
+        else:               # transposed
+            self.as_dataframe().to_csv(filename, header=True, index=True, index_label="timestep")
 
         return

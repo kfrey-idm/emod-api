@@ -23,7 +23,6 @@ from test_camp_outbreak import OutbreakTest
 from test_camp_sv import VaccineTest
 from test_channel_reports import TestHeader, TestChannel, TestChannels
 from test_config import ConfigTest
-from test_demog import DemoTest
 from test_demog_Parser import TestDemogParsers
 from test_demog_from_pop import DemogFromPop
 from test_migration import MigrationTests
@@ -42,7 +41,6 @@ test_classes_to_run = [CommonInterventionTest,
                        TestChannel,
                        TestChannels,
                        ConfigTest,
-                       DemoTest,
                        TestDemogParsers,
                        DemogFromPop,
                        MigrationTests,

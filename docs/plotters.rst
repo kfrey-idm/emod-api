@@ -110,7 +110,7 @@ This script accepts a single PropertyReport.json file as input. Note that this i
 
 **Command-line usage**
 
-``python -m emod_api.channelreports.pplot_prop_report.py [-h] [-c channelName] [-p PRIMARY] [-n] [-b BY] [-o] [-s] [-m] [-v] [--no-legend] [-l] [filename]``
+``python -m emod_api.channelreports.plot_prop_report.py [-h] [-c channelName] [-p PRIMARY] [-n] [-b BY] [-o] [-s] [-m] [-v] [--no-legend] [-l] [filename]``
 
 Property Report Plotting
 

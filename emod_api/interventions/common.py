@@ -41,7 +41,10 @@ def BroadcastEvent(
         schema_path = ( camp.schema_path if camp is not None else schema_path )
         cached_be = s2c.get_class_with_defaults( "BroadcastEvent", schema_path ) 
     intervention = copy.deepcopy(cached_be)
-    intervention.Broadcast_Event = camp.get_send_trigger( Event_Trigger, old=old_adhoc_trigger_style )
+    try:
+        intervention.Broadcast_Event = camp.get_send_trigger( Event_Trigger, old=old_adhoc_trigger_style )
+    except ValueError as ex:
+        raise ValueError( str(ex) + "\n\nMaybe you need to set 'old_adhoc_trigger_style' to false in this module?\n" )
     return intervention
 
 

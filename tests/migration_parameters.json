@@ -1,5 +1,4 @@
 {
 	"params": {"p0": 0.000075, "p1": 1, "p2": 1, "p3": 0},
-	"url": "http://idmppwks008.internal.idm.ctr:8080/",
-	"remark": "http://ipapvwks17.linux.idm.ctr:8080/ is Chris Lorton's server; http://idmppwks008.internal.idm.ctr:8080/ is Thomas Fischle's server"
+	"url": "http://ipapvapp37.linux.idm.ctr:8080/"
 }

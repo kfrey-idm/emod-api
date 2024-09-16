@@ -567,12 +567,13 @@ class DemogTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Demographics.from_csv(input_file, res=25 / 3600)
 
-    def test_from_pop_csv(self):
-        out_filename = os.path.join(self.out_folder, "demographics_from_pop_csv.json")
+    def test_from_pop_raster_csv(self):
+        out_filename = os.path.join(self.out_folder, "demographics_from_pop_raster_csv.json")
         manifest.delete_existing_file(out_filename)
 
         input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
-        demog = Demographics.from_pop_csv(input_file)
+        demog = Demographics.from_pop_raster_csv(input_file)
+
         demog.SetDefaultProperties()
         demog.generate_file(out_filename)
         sorted_nodes = Demographics.get_node_ids_from_file(out_filename)
@@ -591,7 +592,7 @@ class DemogTest(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             bad_node = demog.get_node(161839)
 
-        id_reference = 'from_csv'  # hardcoded value
+        id_reference = 'from_raster'  # hardcoded value
         self.assertEqual(demog_json['Metadata']['IdReference'], id_reference)
 
         self.assertDictEqual(demog_json, demog.raw)
@@ -1272,11 +1273,110 @@ class DemogTest(unittest.TestCase):
         self.assertEqual(tot_years_female, years,
                          "Wrong number of processed years on MortalityDistributionFemale Node ")
 
+    def test_mortality_over_time_reflected_in_json_output(self):
+        # Adds a test of generating a node and adding mortality
+        demog = Demographics.from_template_node()
+        demog_dict = demog.to_dict()
+
+        # Load up the Individual Attributes for verification
+        d_ind_atts = demog_dict['Defaults']['IndividualAttributes']
+        is_debugging = False
+        filename_template_node = "DEBUG_test_mortality_template_node.json"
+        filename_enhanced_node = "DEBUG_test_mortality_template_node_enhanced.json"
+        demog.generate_file(name=filename_template_node)
+        self.assertNotIn("MortalityDistributionMale", d_ind_atts,
+                         msg="The default template node should not have complex mortality distributions set.")
+        self.assertNotIn("MortalityDistributionFemale", d_ind_atts,
+                         msg="The default template node should not have complex mortality distributions set.")
+        demog.SetMortalityOverTimeFromData(manifest.mortality_data_age_year_csv, base_year=1950)
+        demog_dict_juicy = demog.to_dict()
+        j_ind_atts = demog_dict_juicy['Defaults']['IndividualAttributes']
+
+        demog.generate_file(name=filename_enhanced_node)
+        self.assertIn("MortalityDistributionMale", j_ind_atts,
+                      msg="The enhanced template node should have complex mortality distributions set.")
+        self.assertIn("MortalityDistributionFemale", j_ind_atts,
+                      msg="The enhanced template node should have complex mortality distributions set.")
+
+        self.assertEqual(j_ind_atts['MortalityDistributionMale'],
+                         j_ind_atts['MortalityDistributionFemale'],
+                         msg="The complex mortality should be the same for female and male pops")
+        # Now try checking data points
+        import csv
+        rows = []
+
+        with open(manifest.mortality_data_age_year_csv, 'r') as csvfile:
+            csvreader = csv.reader(csvfile)
+
+            fields = next(csvreader)
+
+            for row in csvreader:
+                rows.append(row)
+
+        years = fields[1:]
+        year_ints = [int(i) for i in years]
+        age_bucket_strings = [row[0] for row in rows]
+
+        # NOTE on indexes: the 0 index for a row is actually the age bin,
+        # So index 1 is the first _value_.
+        first_bucket_first_year = float(rows[0][1])
+        first_bucket_last_year = float(rows[0][-1])
+        last_bucket_first_year = float(rows[-1][1])
+        last_bucket_last_year = float(rows[-1][-1])
+        if is_debugging:
+            print(f"first bucket first year from csv: {first_bucket_first_year}")
+            print(f"first bucket last year from csv: {first_bucket_last_year}")
+            print(f"last bucket first year from csv: {last_bucket_first_year}")
+            print(f"last bucket last year from csv: {last_bucket_last_year}")
+
+        j_male_mortality = j_ind_atts['MortalityDistributionMale']
+        j_age_bucket_ends = j_male_mortality['PopulationGroups'][0]
+        j_year_offsets = j_male_mortality['PopulationGroups'][1]
+
+        lowest_age_bucket_by_year = j_male_mortality['ResultValues'][0]
+        highest_age_bucket_by_year = j_male_mortality['ResultValues'][-1]
+
+        # Test corner mortality values
+        self.assertEqual(first_bucket_first_year, lowest_age_bucket_by_year[0],
+                         "The lowest age, first year value should be the same in csv and json.")
+        self.assertEqual(first_bucket_last_year, lowest_age_bucket_by_year[-1],
+                         "The lowest age, last year value should be the same in csv and json.")
+        self.assertEqual(last_bucket_first_year, highest_age_bucket_by_year[0],
+                         "The highest age, first year value should be the same in csv and json.")
+        self.assertEqual(last_bucket_last_year, highest_age_bucket_by_year[-1],
+                         "The highest age, last year value should be the same in csv and json.")
+
+        # Test years loaded correctly
+        year_offset_index = 0
+        base_year = 1950  # Magic number!
+        while year_offset_index < len(j_year_offsets):
+            self.assertEqual(year_ints[year_offset_index],
+                             j_year_offsets[year_offset_index] + base_year,
+                             "The second PopulationGroup in the mortality distribution is the year offset"
+                             )
+            year_offset_index += 1
+
+        # Test age buckets loaded correctly
+        age_bucket_index = 0
+        while age_bucket_index < len(j_age_bucket_ends) - 1:
+            tmp_age_bucket_string = age_bucket_strings[age_bucket_index]
+            if '-' in tmp_age_bucket_string:
+                tmp_age_bucket_string = tmp_age_bucket_string[tmp_age_bucket_string.index('-')+1:]
+            age_bucket_end_int = int(tmp_age_bucket_string)
+            self.assertEqual(age_bucket_end_int, j_age_bucket_ends[age_bucket_index + 1],
+                             msg="The second PopulationGroup is the upper bound of an age bucket")
+            age_bucket_index += 1
+
+        if not is_debugging:
+            os.remove(filename_template_node)
+            os.remove(filename_enhanced_node)
+
     def test_demographic_json_dataintegrity_eachvalue_male(self):
 
         demog = Demographics.from_template_node()
         demog.SetMortalityOverTimeFromData(manifest.mortality_data_age_year_csv, base_year=1950)
-        years_male = demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionMale']['ResultValues']
+        import numpy as np
+        years_male = np.asarray(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionMale']['ResultValues']).transpose()
         # Years_Female = demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['ResultValues']
 
         import pandas as pd
@@ -1418,12 +1518,12 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
     def test_01_setmortalityovertimefromdata(self):
         # fn: SetMortalityOverTimeFromData
         # Test type: Functional Test
-        #            from_pop_csv
+        #            from_pop_raster_csv
         #            without node_ids
         # Should be able to do all the basic steps without raising any error.
         
         input_file = os.path.join( manifest.demo_folder, 'nodes.csv')  
-        demog = Demographics.from_pop_csv(input_file)
+        demog = Demographics.from_pop_raster_csv(input_file)
         demog.SetDefaultProperties()
         demog.SetMortalityOverTimeFromData(base_year=1991, data_csv=manifest.mortality_data_age_year_csv)
         
@@ -1439,14 +1539,14 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
     def test_02_setmortalityovertimefromdata(self):
         # fn: SetMortalityOverTimeFromData
         # Test type: Functional Test
-        #            from_pop_csv 
+        #            from_pop_raster_csv 
         #            WITH node_ids
 
-        out_filename = os.path.join(self.out_folder, "demographics_from_pop_csv.json")
+        out_filename = os.path.join(self.out_folder, "demographics_from_pop_raster_csv.json")
         manifest.delete_existing_file(out_filename)
         input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
         
-        demog = Demographics.from_pop_csv(input_file)    # BUG 548: "from_pop_csv"  generates only 1  Geo Node
+        demog = Demographics.from_pop_raster_csv(input_file)    # BUG 548: "from_pop_raster_csv"  generates only 1  Geo Node
         geo_nodes = []
         for i in range(0, len(demog.to_dict()['Nodes'])):
             geo_nodes.append(demog.to_dict()['Nodes'][i]['NodeID'])  

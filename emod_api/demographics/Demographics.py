@@ -5,17 +5,19 @@ import os
 import pandas as pd
 import tempfile
 import pathlib
+import sys
 
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-import emod_api.demographics.grid_construction as grid
 from emod_api.demographics.BaseInputFile import BaseInputFile
 from emod_api.demographics.Node import Node
 from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
 from emod_api.demographics import DemographicsTemplates as DT
 from emod_api.demographics.DemographicsTemplates import CrudeRate, YearlyRate, DtkRate
 from emod_api.demographics.DemographicsInputDataParsers import node_ID_from_lat_long, duplicate_nodeID_check
+from emod_api.demographics.service import service
+
 from typing import List
 from functools import partial
 from emod_api.migration import migration
@@ -123,56 +125,6 @@ def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_par
     return Demographics(nodes=nodes, idref=id_ref)
 
 
-def _create_grid_files( point_records_file_in, final_grid_files_dir, site ):
-    """
-    Purpose: Create grid file (as csv) from records file. 
-    Author: pselvaraj
-    """
-    # create paths first...
-    output_filename = f"{site}_grid.csv" 
-    if not os.path.exists(final_grid_files_dir):
-        os.mkdir(final_grid_files_dir)
-    out_path = os.path.join(final_grid_files_dir, output_filename )
-
-    if not os.path.exists( out_path ):
-        # Then manip data...
-        #logging.info("Reading data...")
-        print( f"{out_path} not found so we are going to create it." )
-        print( f"Reading {point_records_file_in}." )
-        point_records = pd.read_csv(point_records_file_in, encoding="iso-8859-1")
-        point_records.rename(columns={'longitude': 'lon', 'latitude': 'lat'}, inplace=True)
-
-        if not 'pop' in point_records.columns:
-            point_records['pop'] = [5.5] * len(point_records)
-
-        if 'hh_size' in point_records.columns:
-            point_records['pop'] = point_records['hh_size']
-
-        # point_records = point_records[point_records['pop']>0]
-        x_min, y_min, x_max, y_max = grid.get_bbox(point_records)
-        point_records = point_records[
-            (point_records.lon >= x_min) & (point_records.lon <= x_max) & (point_records.lat >= y_min) & (
-                    point_records.lat <= y_max)]
-        gridd, grid_id_2_cell_id, origin, final = grid.construct(x_min, y_min, x_max, y_max)
-        gridd.to_csv(os.path.join(final_grid_files_dir, f"{site}_grid.csv"))
-
-        with open(os.path.join(final_grid_files_dir, f"{site}_grid_id_2_cell_id.json"), "w") as g_f:
-            json.dump(grid_id_2_cell_id, g_f, indent=3)
-
-        point_records[['gcid', 'gidx', 'gidy']] = point_records.apply(
-                grid.point_2_grid_cell_id_lookup,
-                args=(grid_id_2_cell_id, origin,), axis=1).apply(pd.Series)
-
-        grid_pop = point_records.groupby(['gcid', 'gidx', 'gidy'])['pop'].apply(np.sum).reset_index()
-        grid_pop['pop'] = grid_pop['pop'].apply(lambda x: round(x/5))
-        grid_final = pd.merge(gridd, grid_pop, on='gcid')
-        grid_final['node_label'] = list(grid_final.index)
-        grid_final = grid_final[grid_final['pop'] > 5]
-        grid_final.to_csv(os.path.join(final_grid_files_dir, output_filename ))
-
-    print( f"{out_path} gridded population file created or found." )
-    return out_path 
-
 def from_csv(input_file, res=30/3600, id_ref="from_csv"):
     """
     Create an EMOD-compatible Demographics instance from a csv population-by-node file.
@@ -239,12 +191,51 @@ def from_csv(input_file, res=30/3600, id_ref="from_csv"):
 
     return Demographics(nodes=out_nodes, idref=id_ref)
 
-def from_pop_csv( pop_filename_in, pop_filename_out="spatial_gridded_pop_dir", site="No_Site" ):
-    # This should be a 'raw' ungridded file that needs to be converted into a pop_grid using _create_grid_files from household lat-lons
-    # Don't do this if the grid file already exists.
-    grid_file_path = _create_grid_files( pop_filename_in, pop_filename_out, site )
+# This will be the long-term API for this function.
+def from_pop_raster_csv(
+    pop_filename_in,
+    res=1/120,
+    id_ref="from_raster",
+    pop_filename_out="spatial_gridded_pop_dir",
+    site="No_Site"
+):
+    """
+        Take a csv of a population-counts raster and build a grid for use with EMOD simulations.
+        Grid size is specified by grid resolution in arcs or in kilometers. The population counts 
+        from the raster csv are then assigned to their nearest grid center and a new intermediate
+        grid file is generated with latitude, longitude and population. This file is then fed to
+        from_csv to generate a demographics object.
+    
+    Args:
+        pop_filename_in (str): The filename of the population-counts raster in CSV format.
+        res (float, optional): The grid resolution in arcs or kilometers. Default is 1/120.
+        id_ref (str, optional): Identifier reference for the grid. Default is "from_raster".
+        pop_filename_out (str, optional): The output filename for the intermediate grid file.
+            Default is "spatial_gridded_pop_dir".
+        site (str, optional): The site name or identifier. Default is "No_Site".
+    
+    Returns:
+        Demographics object: The generated demographics object based on the grid file.
+    
+    Raises:
+        N/A
+    
+    """
+    grid_file_path = service._create_grid_files( pop_filename_in, pop_filename_out, site )
     print( f"{grid_file_path} grid file created." )
-    return from_csv( grid_file_path )
+    return from_csv( grid_file_path, res, id_ref )
+
+def from_pop_csv(
+    pop_filename_in,
+    res=1/120,
+    id_ref="from_raster",
+    pop_filename_out="spatial_gridded_pop_dir",
+    site="No_Site"
+):
+    """
+        Deprecated. Please use from_pop_raster_csv.
+    """
+    return from_pop_raster_csv( pop_filename_in, res, id_ref, pop_filename_out, site )
 
 class Demographics(BaseInputFile):
     """
@@ -319,6 +310,93 @@ class Demographics(BaseInputFile):
             json.dump(self.to_dict(), output, indent=3, sort_keys=True)
 
         return name
+
+    def send( self, write_to_this, return_from_forked_sender=False ):
+        """
+        Write data to a file descriptor as specified by the caller. It must be a pipe,
+        a filename, or a file 'handle'
+
+        Args:
+            write_to_this: File pointer, file path, or file handle.
+            return_from_forked_sender: Defaults to False. Only applies to pipes. 
+                Set to true if caller will handle exiting of fork.
+
+        Example::
+
+            1) Send over named pipe client code
+            # Named pipe solution 1, uses os.open, not open.
+            import tempfile
+            tmpfile = tempfile.NamedTemporaryFile().name
+            os.mkfifo( tmpfile )
+
+            fifo_reader = os.open( tmpfile, os.O_RDONLY |  os.O_NONBLOCK )
+            fifo_writer = os.open( tmpfile, os.O_WRONLY |  os.O_NONBLOCK )
+            demog.send( fifo_writer )
+            os.close( fifo_writer )
+            data = os.read( fifo_reader, int(1e6) )
+
+            2) Send over named pipe client code version 2 (forking)
+            import tempfile
+            tmpfile = tempfile.NamedTemporaryFile().name
+            os.mkfifo( tmpfile )
+
+            process_id = os.fork()
+            # parent stays here, child is the sender
+            if process_id:
+                # reader
+                fifo_reader = open( tmpfile, "r" )
+                data = fifo_reader.read()
+                fifo_reader.close()
+            else:
+                # writer
+                demog.send( tmpfile )
+
+            3) Send over file.
+            import tempfile
+            tmpfile = tempfile.NamedTemporaryFile().name
+            # We create the file handle and we pass it to the other module which writes to it.
+            with open( tmpfile, "w" ) as ipc:
+                demog.send( ipc )
+
+            # Assuming the above worked, we read the file from disk.
+            with open( tmpfile, "r" ) as ipc:
+                read_data = ipc.read()
+            
+            os.remove( tmpfile )
+
+        Returns:
+            N/A
+        """
+
+        if type(write_to_this) is int:
+            # Case 1: gonna say this is a pipe
+            data_as_bytes = json.dumps( self.to_dict() ).encode('utf-8')
+            # Sending demographics to pipe
+            try:
+                os.write(write_to_this, data_as_bytes)
+            except Exception as ex:
+                raise ValueError( str(ex) + "\n\nException encountered while trying to write demographics json to inferred pipe handle." )
+        elif type(write_to_this) is str:
+            # Case 2: we've been passed a filepath ot use to open a named pipe
+            #print( "Serializing demographics object to json string." )
+            data_as_str = json.dumps( self.to_dict() )
+            # Sending demographics to named pipe
+            try:
+                fifo_writer = open( write_to_this, "w" )
+                fifo_writer.write( data_as_str )
+                fifo_writer.close()
+                if return_from_forked_sender:
+                    return
+                else:
+                    sys.exit()
+            except Exception as ex:
+                raise ValueError( str(ex) + f"\n\nException encountered while trying to write demographics json to pipe based on name {write_to_this}." )
+        else:
+            # Case 3: with( open( some_path ) ) as write_to_this
+            try:
+                json.dump( self.to_dict(), write_to_this )
+            except Exception as ex:
+                raise ValueError( str(ex) + f"\n\nException encountered while trying to write demographics json to inferred file based on {write_to_this}." )
 
     @property
     def node_ids(self):
@@ -404,7 +482,7 @@ class Demographics(BaseInputFile):
 
     def SetRoundTripMigration(self, gravity_factor, probability_of_return=1.0, id_ref='short term commuting migration'):
         """
-        Set commuter/seasonal/temporary/round-trip migration rates.
+        Set commuter/seasonal/temporary/round-trip migration rates. You can use the x_Local_Migration configuration parameter to tune/calibrate.
 
         Args:
             gravity_factor: 'Big G' in gravity equation. Combines with 1, 1, and -2 as the other exponents.
@@ -434,7 +512,7 @@ class Demographics(BaseInputFile):
 
     def SetOneWayMigration(self, rates_path, id_ref='long term migration'):
         """
-        Set one way migration.
+        Set one way migration. You can use the x_Regional_Migration configuration parameter to tune/calibrate.
 
         Args:
             rates_path: Path to csv file with node-to-node migration rates. Format is: source (node id),destination (node id),rate.
@@ -581,6 +659,7 @@ class Demographics(BaseInputFile):
         num_age_buckets = len(Age_Bin_Edges_In_Years)-1
         if len(TransmissionMatrix) != num_age_buckets:
             raise ValueError( f"Number of rows of TransmissionMatrix ({len(TransmissionMatrix)}) must match number of age buckets ({num_age_buckets})." )
+
         for idx in range(len(TransmissionMatrix)):
             num_cols = len(TransmissionMatrix[idx])
             if num_cols != num_age_buckets:
@@ -670,7 +749,8 @@ class Demographics(BaseInputFile):
 
     def SetMortalityOverTimeFromData(self, data_csv, base_year, node_ids=[]):
         """
-        Set default mortality rates for all nodes or per node. Turn on mortality configs implicitly.
+        Set default mortality rates for all nodes or per node. Turn on mortality configs implicitly. You can use 
+        the x_Other_Mortality configuration parameter to tune/calibrate.
 
         Args:
             data_csv: Path to csv file with the mortality rates by calendar year and age bucket.
@@ -698,8 +778,6 @@ class Demographics(BaseInputFile):
         rel_years = list()
         for year in range(year_start,year_start+num_years):
             mort_data = list( df[str(year)] )
-            # mort_data is the array of mortality rates (by age bin) for _year_
-            rates.append( mort_data )
             rel_years.append( year-base_year )
 
         age_key = None
@@ -717,11 +795,17 @@ class Demographics(BaseInputFile):
             for age_bin in raw_age_bins:
                 left_age = float(age_bin.split("-")[0])
                 age_bins.append( left_age )
+
         except Exception as ex:
             raise ValueError( f"Ran into error processing the values in the Age-Bin column. {ex}" )
 
+        for idx in range(len(age_bins)): # 18 of these
+            # mort_data is the array of mortality rates (by year bin) for age_bin
+            mort_data = list( df.transpose()[idx][1:] )
+            rates.append( mort_data ) # 28 of these, 1 for each year, eg
+
         num_pop_groups = [ num_age_bins, num_years ]
-        pop_groups = [ rel_years, age_bins ]
+        pop_groups = [ age_bins, rel_years ]
         
         distrib = IndividualAttributes.MortalityDistribution(
                 result_values = rates,
@@ -942,7 +1026,8 @@ class Demographics(BaseInputFile):
     def SetFertilityOverTimeFromParams( self, years_region1, years_region2, start_rate, inflection_rate, end_rate, node_ids=[] ):
         """
         Set fertility rates that vary over time based on a model with two linear regions. Note that fertility rates
-        use GFR units: babies born per 1000 women of child-bearing age annually. 
+        use GFR units: babies born per 1000 women of child-bearing age annually. You can use the x_Birth configuration 
+        parameter to tune/calibrate.
         
         Refer to the following diagram.
         

@@ -17,6 +17,7 @@ class VaccineTest(CampaignTest):
     def setUpClass(cls) -> None:
         super().setUpClass()
         sv.schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
+        camp.set_schema(sv.schema_path)
 
     def test_as_file(self):
         vaccine_type = 'Acquire'

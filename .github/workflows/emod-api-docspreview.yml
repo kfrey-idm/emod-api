@@ -1,4 +1,7 @@
 # This workflow will Rebuild emod-api Docs triggered when changes to rst, python or requirements.txt files are intended.
+# The resulting documentation files get uploaded to a shared location accessible to the author of the changes. 
+# Resulting link is provided.
+# Please note that we are running the build with a flag that treats the errors as warnings.
 
 name: Rebuild And Preview emod-api docs
 on:
@@ -7,13 +10,13 @@ on:
       - '**.py'
       - '**/*docs/**'
       - '**/requirements.txt'
-      - '.github/workflows/emod-api-docspreview.yml'
+      
   pull_request:
-    paths:
-      - '**.py'
-      - '**/*docs/**'
-      - '**/requirements.txt'   
-
+    branches:
+      - dev-*
+      - release*
+      - master
+      
 jobs:
   emod-api-docs-Preview:
     env:
@@ -57,13 +60,13 @@ jobs:
         make clean
         make htmlnobreak
     
-    # On Failure:
-    - name: If the build step failed
-      if: ${{ failure() && steps.build-docs.conclusion == 'failure' }}
-      run: |
-        echo "Your build has failed, no link will be generated"
-        echo "LINK_URL='No link has been generated'" >> $GITHUB_ENV
-        echo "BLOB_MESSAGE='Only docs folder files were moved to the Storage Account'" >> $GITHUB_ENV
+#     # On Failure: STEP REMOVED - we will generate the links despite the results of the build.
+#     - name: If the build step failed
+#       if: ${{ failure() && steps.build-docs.conclusion == 'failure' }}
+#       run: |
+#         echo "Your build has failed, no link will be generated"
+#         echo "LINK_URL='No link has been generated'" >> $GITHUB_ENV
+#         echo "BLOB_MESSAGE='Only docs folder files were moved to the Storage Account'" >> $GITHUB_ENV
         
     # On Success    -------------------------------------------
     - name: Get current date
@@ -73,13 +76,15 @@ jobs:
         echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
         
     - name: Updating LINK to your DOCS
-      if: ${{steps.build-docs.outcome}} == 'success'
       run: |
         echo "Your Documents are ready!"
         echo "BLOB_MESSAGE='The full Docs folder and resulting build were moved to the Storage Account. This is your link:'" >> $GITHUB_ENV
         echo "DESTINATION_PATH=${BLOB_FIXEDPATH}/${{env.THIS_RUN}}" >> $GITHUB_ENV
         echo "LINK_URL=${BLOB_ENDPOINT}/${BLOB_CONTAINERNAME}/${BLOB_FIXEDPATH}/${{env.THIS_RUN}}/${INDEX_HTML}" >> $GITHUB_ENV
-    
+    - name: Your LINK
+      run: |
+        echo "${{ env.LINK_URL }}" 
+        
     # UPLOAD TO AZURE
     - name: Azure Blob Upload
       if: always()
@@ -93,20 +98,12 @@ jobs:
         fail_if_source_empty: true
         is_recursive: true
 
-    
-    # Final Link          
-    - name: LINK to YOUR DOCS
-      if: always()
-      run: |
-        echo "${{ env.BLOB_MESSAGE}}"
-        echo "${{ env.LINK_URL }}" 
-
     # Updates PR
-    #- name: Updates PR
-    #  if: always()
-    #  uses: mshick/add-pr-comment@v1
-    #  env:
-    #      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-    #  with:
-    #    message: |
-    #       ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[Documents Preview](${{ env.LINK_URL }})**
+    - name: Updates PR
+      if: always()
+      uses: mshick/add-pr-comment@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.PR_UPDATE_TOKEN_MMG }}
+      with:
+          message: |
+            ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[-> Link to documents preview](${{ env.LINK_URL }})**

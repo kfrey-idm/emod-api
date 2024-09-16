@@ -871,8 +871,9 @@ class MigrationTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             from_csv(Path(CWD, "data", "migration", "test_migration_without_content.csv"), id_ref="testing")
 
-    #@pytest.skip(reason="Service machine termporarely offline", allow_module_level=True)
-    def skip_test_from_demog_and_param_gravity_webservice_population_only(self):    # Renaming just to make sure that any of the test frameworks don't run this test.
+    @unittest.skipIf(platform == "linux" or platform == "linux2" or int(os.getenv('TEST_LEVEL', 0)) == 1,
+                     "skip from_demog_and_param_gravity_webservice_population_only test in GHA(Linux OS, non-VPN)")
+    def test_from_demog_and_param_gravity_webservice_population_only(self):    # Renaming just to make sure that any of the test frameworks don't run this test.
         id_ref = 'from_demog_and_param_gravity_webservice_test'
         demographics_file = CWD / 'data' / 'demographics' / 'from_demog_and_param_gravity_webservice.json'
 

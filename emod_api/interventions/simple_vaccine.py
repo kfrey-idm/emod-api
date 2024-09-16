@@ -24,7 +24,10 @@ def new_intervention(timestep, v_type=vaccine_type, efficacy=initial_effect, sv_
     """
 
     intervention = s2c.get_class_with_defaults("Vaccine", schema_path)
-    efficacy_profile = "WaningEffectBox"
+    if s2c.uses_old_waning():
+        efficacy_profile = "WaningEffectBox"
+    else:
+        efficacy_profile = "WaningEffect"
     waning = s2c.get_class_with_defaults(efficacy_profile, schema_path)
     waning.Initial_Effect = efficacy
     waning.Box_Duration = waning_duration
@@ -75,7 +78,6 @@ def new_intervention2(timestep):
 
 
 def new_intervention_as_file(timestep, filename=None):
-    camp.schema_path = "schema.json"
     camp.add(new_intervention(timestep, vaccine_type, initial_effect, iv_name, box_duration), first=True)
     if filename is None:
         filename = "simple_vaccine.json"

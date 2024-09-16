@@ -98,8 +98,8 @@ def new_intervention(campaign_builder, timestep, cases=1):
         # This can be fine because this is a new parameter only in some branches.
         # Obviously this question is more general and needs a better general solution
         # if at all possible. Max_Cases_Per_Node is an event coordinator optional param.
-        print(str(ex))
-        print("Using 'Outbreak' intervention instead of OutbreakIndividual and Max_Case_Per_Node.")
+        #print(str(ex))
+        #print("Using 'Outbreak' intervention instead of OutbreakIndividual and Max_Case_Per_Node.")
         iv_name = "Outbreak"
 
     event.Event_Coordinator_Config = coordinator
