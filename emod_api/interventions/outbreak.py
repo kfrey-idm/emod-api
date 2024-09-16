@@ -113,7 +113,7 @@ def new_intervention(campaign_builder, timestep, cases=1):
 
 
 def new_intervention_as_file(camp, timestep, cases=1, filename=None):
-    camp.add(new_intervention(camp, timestep, cases), first=True)
+    camp.add(new_intervention(camp, timestep, cases))
     if filename is None:
         filename = "outbreak.json"
     camp.save(filename)

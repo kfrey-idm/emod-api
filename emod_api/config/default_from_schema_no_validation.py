@@ -18,16 +18,16 @@ def schema_to_config_subnode( schema_path_in, subnode_list ):
     default_config[ "parameters" ][ "schema" ] = {}
 
     # 2) Get the whole schema
-    schema = json.loads( open( schema_path_in ).read() )
+    with open(schema_path_in) as schema_in:
+        schema = json.loads(schema_in.read())
+        subnode = schema
+        for subkey in subnode_list:
+            subnode = subnode[subkey]
+        # 3) Get the defaults from a subnode (config)
+        _set_defaults_for_schema_group(default_config, subnode, schema["idmTypes"])
 
-    subnode = schema
-    for subkey in subnode_list:
-        subnode = subnode[ subkey ]
-    # 3) Get the defaults from a subnode (config)
-    _set_defaults_for_schema_group( default_config, subnode, schema["idmTypes"] )
-
-    # 4) Convert to schema-backed 'read-only dict'
-    config = json.loads( json.dumps( default_config ), object_hook=s2c.ReadOnlyDict )
+        # 4) Convert to schema-backed 'read-only dict'
+        config = json.loads(json.dumps(default_config), object_hook=s2c.ReadOnlyDict)
 
     return config
 

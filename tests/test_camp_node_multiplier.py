@@ -10,9 +10,17 @@ from emod_api import campaign as camp
 from camp_test import CampaignTest, delete_existing_file
 
 current_directory = os.path.dirname(os.path.realpath(__file__))
-
+schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
 _sim_max_time = 365000
 class NodeMultiplierTest(CampaignTest):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        camp.set_schema(schema_path)
+
+    def tearDown(self) -> None:
+        camp.set_schema(schema_path)
+
     def test_as_file(self):
         camp_filename = 'node_multiplier_as_file.json'
         delete_existing_file(camp_filename)
@@ -41,7 +49,7 @@ class NodeMultiplierTest(CampaignTest):
     def test_as_event_default(self):
         event = nm.new_scheduled_event(camp)
         name = 'node_multiplier_as_event_default'
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = 'node_multiplier_as_event_default.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -74,7 +82,7 @@ class NodeMultiplierTest(CampaignTest):
         name = 'node_multiplier_as_event_constant'
         event = nm.new_scheduled_event(camp, start_day=start_day, new_infectivity=new_infectivity, profile=profile,
                                        node_ids=node_ids, recurring=False)
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = 'node_multiplier_as_event_constant.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -106,7 +114,7 @@ class NodeMultiplierTest(CampaignTest):
         name = 'node_multiplier_as_event_sawtooth_rise_dur'
         event = nm.new_scheduled_event(camp, start_day=start_day, new_infectivity=new_infectivity, profile=profile,
                                        rise_dur=rise_dur)
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = name + '.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -135,7 +143,7 @@ class NodeMultiplierTest(CampaignTest):
         name = 'node_multiplier_as_event_boxcar'
         event = nm.new_scheduled_event(camp, start_day=start_day, new_infectivity=new_infectivity, profile=profile,
                                        peak_dur=peak_dur)
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = name + '.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -164,7 +172,7 @@ class NodeMultiplierTest(CampaignTest):
         name = 'node_multiplier_as_event_sawtooth_fall_dur'
         event = nm.new_scheduled_event(camp, start_day=start_day, new_infectivity=new_infectivity, profile=profile,
                                        fall_dur=fall_dur)
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = name + '.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -195,7 +203,7 @@ class NodeMultiplierTest(CampaignTest):
         name = 'node_multiplier_as_event_trapezoid'
         event = nm.new_scheduled_event(camp, start_day=start_day, new_infectivity=new_infectivity, profile=profile,
                                        rise_dur=rise_dur, peak_dur=peak_dur, fall_dur=fall_dur)
-        camp.add(event, name=name, first=True)
+        camp.add(event, name=name)
         camp_filename = name + '.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)

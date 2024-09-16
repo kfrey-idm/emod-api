@@ -11,9 +11,16 @@ from camp_test import CampaignTest, delete_existing_file
 
 import outbreak_arguments as testcase
 current_directory = os.path.dirname(os.path.realpath(__file__))
-
+schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
 
 class OutbreakTest(CampaignTest):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        camp.set_schema(schema_path)
+
+    def tearDown(self) -> None:
+        camp.set_schema(schema_path)
     def test_seed_simple(self):
         testcase.Property_Restrictions = [{"Place": "Rural"}]
         testcase.Filename = "outbreak_individual_seed_simple"
@@ -51,7 +58,6 @@ class OutbreakTest(CampaignTest):
         
         self.assertEqual(len(camp_event), 1)
         event = camp_event[0]
-        pprint.pprint(event)
         self.assertEqual(event['Start_Day'], case.Start_Day)
         self.assertEqual(event['Event_Coordinator_Config']['Demographic_Coverage'], case.Demographic_Coverage)
         self.assertEqual(event['Event_Coordinator_Config']['Target_Age_Max'], case.Target_Age_Max)
@@ -86,10 +92,10 @@ class OutbreakTest(CampaignTest):
         timestep = 30
         cases = 5
         event = ob.new_intervention(camp, timestep, cases=cases)
-        camp.add(event, name='outbreak_1', first=True)
-        camp.add(ob.new_intervention(camp, timestep * 2, cases=cases * 2), name='outbreak_2', first=False)
-        camp.add(ob.new_intervention(camp, timestep * 3, cases=cases * 3), name='outbreak_3', first=False)
-        camp.add(ob.new_intervention(camp, timestep * 4, cases=cases * 4), name='outbreak_4', first=False)
+        camp.add(event, name='outbreak_1')
+        camp.add(ob.new_intervention(camp, timestep * 2, cases=cases * 2), name='outbreak_2')
+        camp.add(ob.new_intervention(camp, timestep * 3, cases=cases * 3), name='outbreak_3')
+        camp.add(ob.new_intervention(camp, timestep * 4, cases=cases * 4), name='outbreak_4')
         camp_filename = 'outbreak_as_event.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -117,7 +123,7 @@ class OutbreakTest(CampaignTest):
         coverage = 0.05
         event = ob.seed_by_coverage(campaign_builder=camp, timestep=timestep, coverage=coverage)
         event_name = 'individual_outbreak'
-        camp.add(event, name=event_name, first=True)
+        camp.add(event, name=event_name)
         camp_filename = 'outbreak_individual.json'
         delete_existing_file(camp_filename)
         camp.save(camp_filename)
@@ -187,7 +193,7 @@ class OutbreakTest(CampaignTest):
         if "schema" in camp: 
             return 1
         for key, value in camp.items():
-            if isinstance(value,dict):
+            if isinstance(value, dict):
                 item = self.rec_check_camp(value)
                 if item is not None:
                     return 1
@@ -197,7 +203,7 @@ class OutbreakTest(CampaignTest):
         coverage = 0.05
         event = ob.seed_by_coverage(campaign_builder=camp, timestep=timestep, coverage=coverage)
         event_name = 'individual_outbreak'
-        camp.add(event, name=event_name, first=True)
+        camp.add(event, name=event_name)
 
         outbreak_file = 'outbreak.json'
         delete_existing_file(outbreak_file)
@@ -210,13 +216,13 @@ class OutbreakTest(CampaignTest):
 
         intervention_only = ob.seed_by_coverage(campaign_builder=camp, timestep=timestep, coverage=coverage, intervention_only=True)
         intervention_only_file = "outbreak_intervention_only.json"
-        camp.add(intervention_only, name=event_name, first=True)
+        camp.add(intervention_only, name=event_name)
         delete_existing_file(intervention_only_file)
         camp.save(intervention_only_file)
 
         with open(intervention_only_file, 'r') as file:
             campaign = json.load(file)
-            intervention_only_dict = campaign['Events'][0]
+            intervention_only_dict = campaign['Events'][0]['Event_Coordinator_Config']['Intervention_Config']
             intervention_only_defaults = campaign["Use_Defaults"]
 
         for key in outbreak_dict:

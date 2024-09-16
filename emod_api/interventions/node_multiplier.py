@@ -104,7 +104,7 @@ def new_intervention_as_file( camp, timestep, filename=None ):
     """
     Create new NodeInfectivityModifying intervention as sole scheduled campaign event inside working campaign json file.
     """
-    camp.add( new_scheduled_event( camp, profile="CONSTANT", start_day=timestep, node_ids=[] ), first=True )
+    camp.add( new_scheduled_event( camp, profile="CONSTANT", start_day=timestep, node_ids=[] ))
     if filename is None:
         filename = "node_infectivity.json"
     camp.save( filename )

@@ -11,19 +11,19 @@ from emod_api.utils import Distributions
 from camp_test import CampaignTest, delete_existing_file
 
 current_directory = os.path.dirname(os.path.realpath(__file__))
-schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
-mapped_gp_events = ['GP_EVENT_000', 'GP_EVENT_001']
+schema_path_malaria = os.path.join(current_directory, 'data', 'config',
+                                   'input_malaria_schema.json')
 
-class CommonInterventionTest(CampaignTest):
+
+class CommonInterventionTestMalaria(CampaignTest):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        common.old_adhoc_trigger_style = False  # setting because testing Generic-Ongoing
+        common.old_adhoc_trigger_style = True
 
     def tearDown(self) -> None:
-        camp.set_schema(schema_path)
+        camp.set_schema(schema_path_malaria)
         self.common_reset_globals()
-
 
     def common_reset_globals(self):
         common.cached_be = None
@@ -352,7 +352,7 @@ class CommonInterventionTest(CampaignTest):
         ic = ecc['Intervention_Config']
         self.assertEqual(ic['class'], 'NodeLevelHealthTriggeredIV')
         self.assertEqual(ic['Property_Restrictions'], ['Risk:High'])
-        self.assertEqual(ic['Trigger_Condition_List'], mapped_gp_events)
+        self.assertEqual(ic['Trigger_Condition_List'], triggers)
 
         ac = ic['Actual_IndividualIntervention_Config']
         self.assertTrue(ac.items() <=
@@ -399,7 +399,7 @@ class CommonInterventionTest(CampaignTest):
         ic = ecc['Intervention_Config']
         self.assertEqual(ic['class'], 'NodeLevelHealthTriggeredIV')
         self.assertEqual(ic['Property_Restrictions'], ['Risk:High'])
-        self.assertEqual(ic['Trigger_Condition_List'], mapped_gp_events)
+        self.assertEqual(ic['Trigger_Condition_List'], triggers)
 
         ac = ic['Actual_IndividualIntervention_Config']
         self.assertTrue(ac.items() <=
@@ -508,7 +508,7 @@ class CommonInterventionTest(CampaignTest):
         event = self.save_campaignfile_and_load_event(intervention, "TriggeredCE_Blackout_Event_Default.json")
         ecc = event['Event_Coordinator_Config']
         ic = ecc['Intervention_Config']
-        self.assertEqual(ic["Blackout_Event_Trigger"], "NoTrigger")  # default for Generic, see schema
+        self.assertEqual(ic["Blackout_Event_Trigger"], "")  # default for Malaria, see schema
         self.assertEqual(ic["Blackout_On_First_Occurrence"], 0)
         self.assertEqual(ic["Blackout_Period"], 0)
 
@@ -659,7 +659,7 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(standard_diagnostic.Days_To_Diagnosis, 0)
         self.assertEqual(standard_diagnostic.Treatment_Fraction, 1)
         # self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
-        self.assertTrue(standard_diagnostic.Intervention_Name, "SimpleDiagnostic")
+        self.assertTrue(standard_diagnostic.Intervention_Name == "StandardDiagnostic")
         self.assertTrue(standard_diagnostic.Positive_Diagnosis_Config.Broadcast_Event == "PositiveResult")
 
     def test_StandardDiagnostic_events(self):
@@ -857,7 +857,7 @@ class CommonInterventionTest(CampaignTest):
             self.assertEqual(event['Start_Day'], start_day)
             ic = event["Event_Coordinator_Config"]["Intervention_Config"]
             self.assertEqual(ic["Demographic_Coverage"], coverage)
-            self.assertEqual(ic["Trigger_Condition_List"], mapped_gp_events)
+            self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
                 self.assertEqual(
                     ic["Actual_IndividualIntervention_Config"]["Actual_IndividualIntervention_Configs"][0][0]["class"],
@@ -1092,7 +1092,7 @@ class CommonInterventionTest(CampaignTest):
             else:
                 intervention = ic["Actual_IndividualIntervention_Config"]
             self.assertEqual(ic["Demographic_Coverage"], coverage)
-            self.assertEqual(ic["Trigger_Condition_List"], mapped_gp_events)
+            self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
                 self.assertEqual(intervention["class"], "PropertyValueChanger")
                 self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"],
@@ -1161,7 +1161,7 @@ class CommonInterventionTest(CampaignTest):
             else:
                 intervention = ic["Actual_IndividualIntervention_Config"]
             self.assertEqual(ic["Demographic_Coverage"], coverage)
-            self.assertEqual(ic["Trigger_Condition_List"], mapped_gp_events)
+            self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
                 self.assertEqual(intervention["class"], "PropertyValueChanger")
                 self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"],
@@ -1221,6 +1221,355 @@ class CommonInterventionTest(CampaignTest):
             ],
             "class": "NodeSetNodeList"
         })
+
+    def test_broadcast_node_event_default(self):
+        camp_filename = 'test_broadcast_node_event_default.json'
+        delete_existing_file(camp_filename)
+
+        node_event = 'ExitedRelationship'
+        intervention = common.broadcast_node_event(camp, broadcast_event=node_event)
+
+        event = self.save_campaignfile_and_load_event(intervention, camp_filename)
+        self.assertEqual(event['Broadcast_Event'], node_event)
+        self.assertEqual(event['Cost_To_Consumer'], 0)
+        self.assertEqual(event['Disqualifying_Properties'], [])
+        self.assertEqual(event['Dont_Allow_Duplicates'], 0)
+        self.assertEqual(event['class'], "BroadcastNodeEvent")
+        self.assertEqual(event['Intervention_Name'], "BroadcastNodeEvent")
+        self.assertEqual(event['New_Property_Value'], "")
+
+    def test_broadcast_node_event_custom(self):
+        camp_filename = 'test_broadcast_node_event_custom.json'
+        delete_existing_file(camp_filename)
+
+        node_event = 'Testing'
+        cost = 3
+        disqualifying_properties = ['Risk:High', 'Risk:Medium']
+        dont_allow_duplicates = True
+        new_property_value = 'Risk:Low'
+        intervention_name = 'CustomBroadcastNodeEvent'
+
+        intervention = common.broadcast_node_event(camp, broadcast_event=node_event,
+                                                   cost_to_consumer=cost,
+                                                   disqualifying_properties=disqualifying_properties,
+                                                   dont_allow_duplicates=dont_allow_duplicates,
+                                                   new_property_value=new_property_value,
+                                                   intervention_name=intervention_name)
+        event = self.save_campaignfile_and_load_event(intervention, camp_filename)
+        self.assertEqual(event['Broadcast_Event'], node_event)
+        self.assertEqual(event['Cost_To_Consumer'], cost)
+        self.assertEqual(event['Disqualifying_Properties'], disqualifying_properties)
+        self.assertEqual(event['Dont_Allow_Duplicates'], dont_allow_duplicates)
+        self.assertEqual(event['Intervention_Name'], intervention_name)
+        self.assertEqual(event['class'], "BroadcastNodeEvent")
+        self.assertEqual(event['New_Property_Value'], new_property_value)
+
+    def test_broadcast_node_event_error(self):
+        with self.assertRaisesRegex(ValueError, "BroadcastNodeEvent called with an empty broadcast_event. "
+                                                "Please specify a non-empty string.\n"):
+            common.broadcast_node_event(camp, broadcast_event="")
+
+    def test_broadcast_coordinator_event_default(self):
+        camp.campaign_dict["Events"] = []  # resetting events
+        coordinator_event = 'TESTINGTESTING'
+        common.add_broadcast_coordinator_event(camp, broadcast_event=coordinator_event)
+        event = camp.campaign_dict["Events"][0]
+        self.assertEqual(event['Start_Day'], 0)
+        coordinator = event["Event_Coordinator_Config"]
+        self.assertEqual(coordinator['Broadcast_Event'], coordinator_event)
+        self.assertEqual(coordinator['Cost_To_Consumer'], 0)
+        self.assertEqual(coordinator['Coordinator_Name'], "BroadcastCoordinatorEvent")
+        self.assertEqual(coordinator['class'], "BroadcastCoordinatorEvent")
+
+    def test_broadcast_coordinator_event_custom(self):
+        camp.campaign_dict["Events"] = []  # resetting events
+        coordinator_event = 'TESTINGTESTING'
+        start_day = 234
+        cost = 3
+        name = 'CustomBroadcastCoordinatorEvent'
+        common.add_broadcast_coordinator_event(camp, start_day=start_day,
+                                               broadcast_event=coordinator_event, cost_to_consumer=cost,
+                                               coordinator_name=name)
+        event = camp.campaign_dict["Events"][0]
+        self.assertEqual(event['Start_Day'], start_day)
+        coordinator = event["Event_Coordinator_Config"]
+        self.assertEqual(coordinator['Broadcast_Event'], coordinator_event)
+        self.assertEqual(coordinator['Cost_To_Consumer'], cost)
+        self.assertEqual(coordinator['Coordinator_Name'], name)
+        self.assertEqual(coordinator['class'], "BroadcastCoordinatorEvent")
+
+    def test_broadcast_coordinator_event_error(self):
+        with self.assertRaisesRegex(ValueError, "BroadcastCoordinatorEvent called with an empty broadcast_event. "
+                                                "Please specify a non-empty string.\n"):
+            common.add_broadcast_coordinator_event(camp, broadcast_event="")
+
+    def test_add_triggered_coordinator_event_default(self):
+        # tests single node-level intervention and defaults
+        start_trigger_condition_list = ['NewInfection']
+        node_event = "Queen"
+        intervention = common.broadcast_node_event(camp, broadcast_event=node_event)
+        common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                               node_interventions=intervention)
+        event = camp.campaign_dict["Events"][0]
+        self.assertEqual(event['Start_Day'], 0)
+        coordinator = event["Event_Coordinator_Config"]
+        self.assertEqual(coordinator['Completion_Event'], "")
+        self.assertEqual(coordinator['Coordinator_Name'], "TriggeredEventCoordinator")
+        self.assertEqual(coordinator['Demographic_Coverage'], 1)
+        self.assertEqual(coordinator['class'], "TriggeredEventCoordinator")
+        self.assertEqual(coordinator['Duration'], -1)
+        self.assertEqual(coordinator['Individual_Selection_Type'], "DEMOGRAPHIC_COVERAGE")
+        self.assertEqual(coordinator['Node_Property_Restrictions'], [])
+        self.assertEqual(coordinator['Number_Repetitions'], 1)
+        self.assertEqual(coordinator['Property_Restrictions'], [])
+        self.assertEqual(coordinator['Property_Restrictions_Within_Node'], [])
+        self.assertEqual(coordinator['Start_Trigger_Condition_List'], start_trigger_condition_list)
+        self.assertEqual(coordinator['Stop_Trigger_Condition_List'], [])
+        self.assertEqual(coordinator['Target_Demographic'], "Everyone")
+        self.assertEqual(coordinator['Target_Gender'], "All")
+        self.assertEqual(coordinator['Target_Residents_Only'], 0)
+        # self.assertEqual(coordinator['Target_Age_Min'], 0)
+        # self.assertEqual(coordinator['Target_Age_Max'], 125)
+        # self.assertEqual(coordinator['Targeting_Config'], []) not implementing or testing at this time
+        self.assertEqual(coordinator['Timesteps_Between_Repetitions'], -1)
+        intervention_config = coordinator['Intervention_Config']
+        self.assertEqual(intervention_config['class'], "BroadcastNodeEvent")
+        self.assertEqual(intervention_config['Broadcast_Event'], node_event)
+
+    def test_add_triggered_coordinator_event_custom(self):
+        # tests list of individual-level interventions
+        # tests only gender selection
+        camp.set_schema(schema_path_malaria)
+        start_trigger_condition_list = ['NewInfection']
+        broadcast = "Queen"
+        broadcast2 = "Queen2"
+        completion_event = "King"
+        coordinator_name = "CustomTriggeredEventCoordinator"
+        target_num = 234
+        repetitions = 3
+        timesteps = 7
+        start_day = 3433
+        duration = 45
+        target_residents = True
+        node_property_restrictions = ['key:value', 'Property2:value2']
+        ind_property_restrictions = [{'key': 'value', 'Property3': 'value3'}, {"Tom": "Jerry"}]
+        stop_trigger_condition_list = ['sdfjaslfdja']
+        target_gender = TargetGender.Male
+        common.cached_mid = None
+        common.cached_be = None
+        common.schema_path = None
+        common.cached_ce = None
+        common.cached_sec = None
+        # common.old_adhoc_trigger_style = True
+        int1 = common.BroadcastEvent(camp, Event_Trigger=broadcast)
+        int2 = common.BroadcastEvent(camp, Event_Trigger=broadcast2)
+        common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                               stop_trigger_condition_list=stop_trigger_condition_list,
+                                               individual_interventions=[int1, int2],
+                                               start_day=start_day, listening_duration=duration,
+                                               repetitions=repetitions, timesteps_between_repetitions=timesteps,
+                                               completion_event=completion_event, coordinator_name=coordinator_name,
+                                               target_num_individuals=target_num,
+                                               target_residents_only=target_residents,
+                                               node_property_restrictions=node_property_restrictions,
+                                               ind_property_restrictions=ind_property_restrictions,
+                                               target_gender=target_gender)
+
+        event = camp.campaign_dict["Events"][0]
+        self.assertEqual(event['Start_Day'], start_day)
+        coordinator = event["Event_Coordinator_Config"]
+        self.assertEqual(coordinator['Completion_Event'], completion_event)
+        self.assertEqual(coordinator['Coordinator_Name'], coordinator_name)
+        self.assertEqual(coordinator['Target_Num_Individuals'], target_num)
+        self.assertEqual(coordinator['class'], "TriggeredEventCoordinator")
+        self.assertEqual(coordinator['Duration'], duration)
+        self.assertEqual(coordinator['Individual_Selection_Type'], "TARGET_NUM_INDIVIDUALS")
+        self.assertEqual(coordinator['Node_Property_Restrictions'], node_property_restrictions)
+        self.assertEqual(coordinator['Number_Repetitions'], repetitions)
+        self.assertEqual(coordinator['Property_Restrictions'], [])  # not used
+        self.assertEqual(coordinator['Property_Restrictions_Within_Node'], ind_property_restrictions)
+        self.assertEqual(coordinator['Start_Trigger_Condition_List'], start_trigger_condition_list)
+        self.assertEqual(coordinator['Stop_Trigger_Condition_List'], stop_trigger_condition_list)
+        self.assertEqual(coordinator['Target_Demographic'], "ExplicitAgeRangesAndGender")
+        self.assertEqual(coordinator['Target_Gender'], target_gender.name)
+        self.assertEqual(coordinator['Target_Residents_Only'], 1)
+        # self.assertEqual(coordinator['Targeting_Config'], []) not implementing or testing at this time
+        self.assertEqual(coordinator['Timesteps_Between_Repetitions'], timesteps)
+        intervention_config = coordinator['Intervention_Config']
+        self.assertEqual(intervention_config['class'], "MultiInterventionDistributor")
+        events = intervention_config['Intervention_List']
+        if events[0]["Broadcast_Event"] == broadcast:
+            self.assertEqual(events[1]['Broadcast_Event'], broadcast2)
+        else:
+            self.assertEqual(events[1]['Broadcast_Event'], broadcast)
+            self.assertEqual(events[0]['Broadcast_Event'], broadcast2)
+
+    def test_add_triggered_coordinator_event_custom2(self):
+        # test list of node-level interventions
+        start_trigger_condition_list = ['Hullo']
+        node_event = "Queen"
+        node_event2 = "Queen2"
+        node_property_restrictions = ['key:value', 'Property2:value2']
+        intervention = common.broadcast_node_event(camp, broadcast_event=node_event)
+        intervention2 = common.broadcast_node_event(camp, broadcast_event=node_event2)
+        common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                               node_interventions=[intervention, intervention2],
+                                               node_property_restrictions=node_property_restrictions)
+        self.assertEqual(camp.campaign_dict["Events"][0]["Event_Coordinator_Config"]["Node_Property_Restrictions"],
+                         node_property_restrictions)
+        intervention_config = camp.campaign_dict["Events"][0]["Event_Coordinator_Config"]['Intervention_Config']
+        self.assertEqual(intervention_config['class'], "MultiNodeInterventionDistributor")
+        events = intervention_config['Node_Intervention_List']
+        if events[0]["Broadcast_Event"] == node_event:
+            self.assertEqual(events[1]['Broadcast_Event'], node_event2)
+        else:
+            self.assertEqual(events[1]['Broadcast_Event'], node_event)
+            self.assertEqual(events[0]['Broadcast_Event'], node_event2)
+        self.assertEqual(camp.custom_node_events, [node_event, node_event2])
+
+    def test_add_triggered_coordinator_event_custom3(self):
+        # test only age selection
+        # test single individual-level intervention
+        start_trigger_condition_list = ['Hullo']
+        broadcast = "Queen"
+        min_age = 12
+        max_age = 13
+        demographics_coverage = 0.234
+        broadcast_intervention = BroadcastEvent(camp, Event_Trigger=broadcast)
+        common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                               individual_interventions=broadcast_intervention,
+                                               target_age_min=min_age, target_age_max=max_age,
+                                               demographic_coverage=demographics_coverage)
+        coordinator = camp.campaign_dict["Events"][0]["Event_Coordinator_Config"]
+        self.assertEqual(coordinator['Demographic_Coverage'], demographics_coverage)
+        self.assertEqual(coordinator['Individual_Selection_Type'], "DEMOGRAPHIC_COVERAGE")
+        self.assertEqual(coordinator['Target_Age_Min'], min_age)
+        self.assertEqual(coordinator['Target_Age_Max'], max_age)
+        intervention = coordinator['Intervention_Config']
+        self.assertEqual(intervention['class'], "BroadcastEvent")
+        self.assertEqual(intervention['Broadcast_Event'], broadcast)
+        self.assertEqual(coordinator['Target_Demographic'], "ExplicitAgeRanges")
+
+    def test_add_triggered_coordinator_event_error_checking(self):
+        # individual-level restrictions for node-level intervention
+        start_trigger_condition_list = ['Hullo']
+        node_event = "Queen"
+        ind_property_restrictions = [{'key': 'value', 'Property3': 'value3'}, {"Tom": "Jerry"}]
+        max_age = 34
+        min_age = 12
+        num_individuals = 234
+        demographic_coverage = 0.45
+        target_gender = TargetGender.Female
+        intervention = common.broadcast_node_event(camp, broadcast_event=node_event)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   ind_property_restrictions=ind_property_restrictions)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   target_age_max=max_age)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   target_age_min=min_age)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   target_num_individuals=num_individuals)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   demographic_coverage=demographic_coverage)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   target_gender=target_gender)
+        with self.assertRaisesRegex(ValueError, "demographic_coverage, target_num_individuals, target_gender, "
+                                                "target_age_min, target_age_max, target_residents_only, and "
+                                                "ind_property_restrictions are not used when passing in "
+                                                "node_interventions\n"):
+            common.add_triggered_coordinator_event(camp, start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions=[intervention],
+                                                   target_residents_only=True)
+        # start triggers
+        with self.assertRaisesRegex(ValueError, "Please define triggers for start_trigger_condition_list. "
+                                                "Cannot be empty or None.\n"):
+            common.add_triggered_coordinator_event(camp, individual_interventions=intervention,
+                                                   start_trigger_condition_list=[])
+        with self.assertRaisesRegex(ValueError, "Please define triggers for start_trigger_condition_list. "
+                                                "Cannot be empty or None.\n"):
+            common.add_triggered_coordinator_event(camp, individual_interventions=intervention)
+
+        # interventions
+        with self.assertRaisesRegex(ValueError, "Please define either node_interventions or individual_interventions. "
+                                                "They are mutually exclusive.\n"):
+            common.add_triggered_coordinator_event(camp, individual_interventions=intervention,
+                                                   node_interventions=[intervention],
+                                                   start_trigger_condition_list=start_trigger_condition_list)
+        with self.assertRaisesRegex(ValueError, "Please define either node_interventions or individual_interventions. "
+                                                "They are mutually exclusive.\n"):
+            common.add_triggered_coordinator_event(camp,
+                                                   start_trigger_condition_list=start_trigger_condition_list)
+        with self.assertRaisesRegex(ValueError, "Please define either demographic_coverage or target_num_individuals, "
+                                                "but not both, when passing in individual_interventions\n"):
+            common.add_triggered_coordinator_event(camp,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   individual_interventions=intervention)
+        with self.assertRaisesRegex(ValueError, "Invalid type for individual_interventions: <class 'str'>"):
+            common.add_triggered_coordinator_event(camp, demographic_coverage=1,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   individual_interventions="hello")
+        with self.assertRaisesRegex(ValueError, "Invalid type for node_interventions: <class 'str'>"):
+            common.add_triggered_coordinator_event(camp,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   node_interventions="hello")
+
+        # repetitions
+        with self.assertRaisesRegex(ValueError, "Please define both repetitions and timesteps_between_repetitions. "
+                                                "Cannot define one without the other.\n"):
+            common.add_triggered_coordinator_event(camp, demographic_coverage=1,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   individual_interventions=intervention,
+                                                   repetitions=2)
+        with self.assertRaisesRegex(ValueError, "Please define both repetitions and timesteps_between_repetitions. "
+                                                "Cannot define one without the other.\n"):
+            common.add_triggered_coordinator_event(camp, demographic_coverage=1,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   individual_interventions=intervention,
+                                                   timesteps_between_repetitions=2)
+
+        # max age min age
+        with self.assertRaises(ValueError) as context:
+            # can't get the regex to match the results below, but they are the same
+            # with self.assertRaisesRegex(ValueError, f"target_age_max ({min_age}) must be greater than or equal to "
+            #                                         f"target_age_min ({max_age}).\n"):
+            common.add_triggered_coordinator_event(camp, demographic_coverage=1,
+                                                   start_trigger_condition_list=start_trigger_condition_list,
+                                                   individual_interventions=intervention, target_age_min=max_age,
+                                                   target_age_max=min_age)
+
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

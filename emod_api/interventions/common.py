@@ -2,13 +2,15 @@ from tracemalloc import start
 import emod_api.interventions.utils as utils
 from emod_api.utils import Distributions
 from emod_api import schema_to_class as s2c
-
+from enum import Enum
 import copy
 from typing import List
 
 schema_path = None
 old_adhoc_trigger_style = True
 
+cached_be = None
+cached_mid = None
 cached_sec = None
 cached_ce = None
 _MAX_AGE = 365 * 125
@@ -16,8 +18,12 @@ _MAX_AGE = 365 * 125
 ###
 ### Generic
 ###
-cached_be = None
 
+
+class TargetGender(Enum):
+    Male = "Male"
+    Female = "Female"
+    All = "All"
 
 def BroadcastEvent(
         camp,
@@ -51,6 +57,53 @@ def BroadcastEvent(
     return intervention
 
 
+def broadcast_node_event(campaign,
+                         broadcast_event: str,
+                         cost_to_consumer: float = 0.0,
+                         disqualifying_properties: List[str] = None,
+                         dont_allow_duplicates: bool = False,
+                         intervention_name: str = "BroadcastNodeEvent",
+                         new_property_value: str = ""):
+    """
+    Wrapper function to create and return a BroadcastNodeEvent intervention.
+
+    Args:
+        campaign: emod_api.campaign object with schema_path set
+        broadcast_event: String that will be broadcast as Node-level event
+        cost_to_consumer: The unit cost of the intervention campaign that will be assigned to the specified nodes.
+        disqualifying_properties: A list of NodeProperty key:value pairs that cause an intervention to be aborted.
+            Generally used to control the flow of health care access. For example, to prevent the same individual
+            from accessing health care via two different routes at the same time.
+        dont_allow_duplicates: If a node's container has the same intervention, set to True to prevent them from
+            receiving another copy of the intervention. Supported by all intervention classes.
+        intervention_name: The optional name used to refer to this intervention as a means to differentiate it
+            from others that use the same class.
+        new_property_value: An optional NodeProperty key:value pair that will be assigned when the intervention is
+            distributed. Generally used to indicate the broad category of health care cascade to which an intervention
+            belongs to prevent individuals from accessing care through multiple pathways.
+
+    Returns:
+        ReadOnlyDict: BroadcastNodeEvent intervention ready to be added to a campaign.
+    """
+    if not broadcast_event:
+        raise ValueError("BroadcastNodeEvent called with an empty broadcast_event. Please specify a "
+                         "non-empty string.\n")
+    global schema_path
+    schema_path = campaign.schema_path if campaign is not None else schema_path
+    if not disqualifying_properties:
+        disqualifying_properties = []
+
+    intervention = s2c.get_class_with_defaults("BroadcastNodeEvent", schema_path)
+    intervention.Broadcast_Event = broadcast_event
+    campaign.custom_node_events.append(broadcast_event)
+    intervention.Cost_To_Consumer = cost_to_consumer
+    intervention.Disqualifying_Properties = disqualifying_properties
+    intervention.Dont_Allow_Duplicates = 1 if dont_allow_duplicates else 0
+    intervention.Intervention_Name = intervention_name
+    intervention.New_Property_Value = new_property_value
+    return intervention
+
+
 def BroadcastEventToOtherNodes(
         camp,
         Event_Trigger,
@@ -73,10 +126,11 @@ def BroadcastEventToOtherNodes(
             BroadastEvent intervention ready to be added to a campaign.
     """
     if Event_Trigger is None or Event_Trigger == "":
-        raise ValueError("BroadcastEventToOtherNodes called with an empty Event_Trigger. Please specify a string.")
+        raise ValueError("BroadcastEventToOtherNodes called with an empty Event_Trigger. "
+                         "Please specify a non-empty string.")
 
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
     intervention = s2c.get_class_with_defaults("BroadcastEventToOtherNodes", schema_path)
     intervention.Event_Trigger = camp.get_send_trigger(Event_Trigger, old=old_adhoc_trigger_style)
     intervention.Node_Selection_Type = Node_Selection_Type
@@ -86,7 +140,42 @@ def BroadcastEventToOtherNodes(
     return intervention
 
 
-cached_mid = None
+def add_broadcast_coordinator_event(
+        campaign,
+        broadcast_event: str,
+        start_day: int = 0,
+        cost_to_consumer: float = None,
+        coordinator_name: str = "BroadcastCoordinatorEvent"):
+    """
+        Creates and adds BroadcastCoordinatorEvent intervention to the campaign
+
+        Args:
+            campaign: emod_api.campaign object with schema_path set.
+            broadcast_event: String that will be broadcast as Coordinator-level event.
+            start_day: The day in the simulation on which to send out this event.
+            cost_to_consumer: The unit cost of broadcasting the event.
+            coordinator_name: The unique identifying coordinator name, which is useful with the output report,
+                ReportCoordinatorEventRecorder.csv
+
+        Returns:
+            Nothing
+    """
+    if not broadcast_event:
+        raise ValueError("BroadcastCoordinatorEvent called with an empty broadcast_event. "
+                         "Please specify a non-empty string.\n")
+
+    global schema_path
+    schema_path = campaign.schema_path if campaign is not None else schema_path
+    b_c_e = s2c.get_class_with_defaults("BroadcastCoordinatorEvent", schema_path)
+    b_c_e.Broadcast_Event = broadcast_event
+    campaign.custom_coordinator_events.append(broadcast_event)
+    b_c_e.Cost_To_Consumer = cost_to_consumer
+    b_c_e.Coordinator_Name = coordinator_name
+
+    event = s2c.get_class_with_defaults("CampaignEvent", schema_path)
+    event.Start_Day = start_day
+    event.Event_Coordinator_Config = b_c_e
+    campaign.add(event)
 
 
 def MultiInterventionDistributor(
@@ -107,7 +196,7 @@ def MultiInterventionDistributor(
     """
 
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
     if Intervention_List is None or type(Intervention_List) is not list or len(Intervention_List) == 0:
         raise ValueError("Intervention_List is empty or None or not a list.")
     global cached_mid
@@ -127,7 +216,7 @@ def DelayedIntervention(
         Configs: List[dict],
         Delay_Dict: dict):
     """
-        Wrapper function to create and return a DelayedIntervention intervention. 
+        Wrapper function to create and return a DelayedIntervention containing a list of individual-level interventions.
 
         Args:
             camp: emod_api.campaign object with schema_path set.  
@@ -140,7 +229,7 @@ def DelayedIntervention(
             DelayedIntervention intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
     if not Configs or not isinstance(Configs, list):
         raise ValueError("Configs needs to be a list of interventions.\n")
 
@@ -179,7 +268,7 @@ def HSB(
             HSB intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     intervention = s2c.get_class_with_defaults("SimpleHealthSeekingBehavior", schema_path)
     intervention.Event_Or_Config = Event_Or_Config
@@ -235,7 +324,7 @@ def NLHTI(
             NLHTI intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     intervention = s2c.get_class_with_defaults("NodeLevelHealthTriggeredIV", schema_path)
     intervention.Trigger_Condition_List = [camp.get_recv_trigger(trigger, old=old_adhoc_trigger_style) for trigger in
@@ -301,7 +390,7 @@ def PropertyValueChanger(
             PropertyValueChanger intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     intervention = s2c.get_class_with_defaults("PropertyValueChanger", schema_path)
     intervention.Target_Property_Key = Target_Property_Key
@@ -364,7 +453,7 @@ def ScheduledCampaignEvent(
             ScheduledCampaignEvent intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     # Not checking Intervention_list because MultiInterventionDistributor checks
 
@@ -484,7 +573,7 @@ def TriggeredCampaignEvent(
             TriggeredCampaignEvent intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     if Node_Property_Restrictions is None:
         Node_Property_Restrictions = []
@@ -545,6 +634,157 @@ def TriggeredCampaignEvent(
     return event
 
 
+def add_triggered_coordinator_event(campaign,
+                                    start_day: int = 0,
+                                    listening_duration: float = -1,
+                                    start_trigger_condition_list: list = None,
+                                    stop_trigger_condition_list: list = None,
+                                    demographic_coverage: float = None,
+                                    target_num_individuals: int = None,
+                                    node_ids: list = None,
+                                    repetitions: int = None,
+                                    timesteps_between_repetitions: int = None,
+                                    ind_property_restrictions: list = None,
+                                    node_property_restrictions: list = None,
+                                    target_age_min: float = None,
+                                    target_age_max: float = None,
+                                    target_gender: TargetGender = TargetGender.All,
+                                    target_residents_only: bool = False,
+                                    completion_event: str = "",
+                                    coordinator_name: str = "TriggeredEventCoordinator",
+                                    node_interventions: any = None,
+                                    individual_interventions: any = None):
+    """
+        Wrapper function to create and adds a TriggeredCoordinatorEvent. The intervention is triggered by
+        COORDINATOR-level event, and sends out a COORDINATOR-level event when done.
+    
+    Args:
+        campaign: campaign object to which the intervention will be added, and schema_path container
+        start_day: The day the intervention is given out.
+        listening_duration: The number of time steps that the coordinator will monitor for triggers before expiring.
+            Default is -1, which is indefinitely.
+        start_trigger_condition_list:  A list of the COORDINATOR-level events that will trigger intervention distribution.
+        stop_trigger_condition_list: A list of the COORDINATOR-level events that will stop intervention from happening
+            if the intervention is repeating.
+        demographic_coverage: This value is the probability that each individual in the target population will
+            receive the intervention. It does not guarantee that the exact fraction of the target population set by
+            Demographic_Coverage receives the intervention.
+        target_num_individuals: The exact number of people to select out of the targeted group. If this value is set,
+            demographic_coverage parameter is ignored
+        node_ids: List of nodes to which to distribute the intervention. [] or None, indicates all nodes
+            will get the intervention
+        repetitions: The number of times an intervention is given, used with timesteps_between_repetitions. -1 means
+            the intervention repeats forever. Sets **Number_Repetitions**
+        timesteps_between_repetitions: The interval, in timesteps, between repetitions. Ignored if repetitions = 1.
+            Sets **Timesteps_Between_Repetitions**
+        ind_property_restrictions: A list of dictionaries of IndividualProperties, which are needed for the individual
+            to receive the intervention. Sets the **Property_Restrictions_Within_Node**
+        node_property_restrictions: "A list of the NodeProperty key:value pairs, as defined in the demographics file,
+            that nodes must have to be targeted by the intervention.
+        target_age_min: The lower end of ages targeted for an intervention, in years. Sets **Target_Age_Min**
+        target_age_max: The upper end of ages targeted for an intervention, in years. Sets **Target_Age_Max**
+        target_gender: The gender targeted for an intervention: All, Male, or Female.
+        target_residents_only: When set to True, the intervention is only distributed to individuals that began
+            the simulation in the node (i.e. those that claim the node as their residence)
+        completion_event: A COORDINATOR-level event to send out when the coordinator has expired.
+        coordinator_name: The unique identifying coordinator name used to identify the different coordinators in
+            reports.
+        node_interventions: A node-level intervention or a list of node-level interventions that will be distributed
+            when one of the triggers from start_trigger_condition_list is heard.
+        individual_interventions: A individual-level intervention or a list of individual-level interventions that
+            will be distributed when one of the triggers from start_trigger_condition_list is heard.
+
+    Returns:
+        None
+    """
+    if not start_trigger_condition_list:
+        raise ValueError("Please define triggers for start_trigger_condition_list. Cannot be empty or None.\n")
+    if bool(node_interventions) == bool(individual_interventions):
+        raise ValueError("Please define either node_interventions or individual_interventions. "
+                         "They are mutually exclusive.\n")
+    if node_interventions and (demographic_coverage or target_num_individuals or target_gender != TargetGender.All
+                               or target_age_min or
+                               target_age_max or target_residents_only or ind_property_restrictions):
+        raise ValueError("demographic_coverage, target_num_individuals, target_gender, target_age_min, target_age_max, "
+                         "target_residents_only, and ind_property_restrictions are not used when passing in "
+                         "node_interventions\n")
+    if individual_interventions and (bool(demographic_coverage) == bool(target_num_individuals)):
+        raise ValueError("Please define either demographic_coverage or target_num_individuals, but not both, "
+                         "when passing in individual_interventions\n")
+
+    schema_path = campaign.schema_path
+    event = s2c.get_class_with_defaults("CampaignEvent", schema_path)
+    event.Start_Day = start_day
+    event.Nodeset_Config = utils.do_nodes(schema_path, node_ids)
+
+    if node_interventions:
+        if isinstance(node_interventions, list) and len(node_interventions) > 1:
+            multi_intervention_distributor = s2c.get_class_with_defaults("MultiNodeInterventionDistributor",
+                                                                         schema_path)
+            multi_intervention_distributor.Node_Intervention_List = node_interventions
+            intervention = multi_intervention_distributor
+        elif isinstance(node_interventions, list) and len(node_interventions) == 1:
+            intervention = node_interventions[0]  # if only one intervention, just use that
+        elif isinstance(node_interventions, dict):
+            intervention = node_interventions
+        else:
+            raise ValueError("Invalid type for node_interventions: " + str(type(node_interventions)))
+    else:
+        if isinstance(individual_interventions, list) and len(individual_interventions) > 1:
+            multi_intervention_distributor = s2c.get_class_with_defaults("MultiInterventionDistributor", schema_path)
+            multi_intervention_distributor.Intervention_List = individual_interventions
+            intervention = multi_intervention_distributor
+        elif isinstance(individual_interventions, list) and len(individual_interventions) == 1:
+            intervention = individual_interventions[0]  # if only one intervention, just use that
+        elif isinstance(individual_interventions, dict):
+            intervention = individual_interventions
+        else:
+            raise ValueError("Invalid type for individual_interventions: " + str(type(individual_interventions)))
+
+    # configuring the coordinator
+    coordinator = s2c.get_class_with_defaults("TriggeredEventCoordinator", schema_path)
+    coordinator.Intervention_Config = intervention
+    if target_num_individuals is not None:  # so they can set it to 0 for some reason
+        coordinator.Target_Num_Individuals = target_num_individuals
+    elif demographic_coverage is not None:  # so they can set it to 0 for some reason
+        coordinator.Demographic_Coverage = demographic_coverage
+    coordinator.Target_Residents_Only = target_residents_only
+    if repetitions and timesteps_between_repetitions:
+        coordinator.Number_Repetitions = repetitions
+        coordinator.Timesteps_Between_Repetitions = timesteps_between_repetitions
+    elif bool(repetitions) != bool(timesteps_between_repetitions):
+        raise ValueError("Please define both repetitions and timesteps_between_repetitions. "
+                         "Cannot define one without the other.\n")
+    if ind_property_restrictions:
+        coordinator.Property_Restrictions_Within_Node = ind_property_restrictions
+    if node_property_restrictions:
+        coordinator.Node_Property_Restrictions = node_property_restrictions
+
+    if target_age_min:  # 0 is the default, we don't have to set it explicitly
+        coordinator.Target_Age_Min = target_age_min
+    if target_age_max is not None and target_age_max <= coordinator.Target_Age_Min:
+        raise ValueError(f"target_age_max ({target_age_max}) must be greater than or equal to "
+                         f"target_age_min ({target_age_min}).\n")
+    else:
+        coordinator.Target_Age_Max = target_age_max
+    if target_gender != TargetGender.All:
+        coordinator.Target_Gender = target_gender.name
+        coordinator.Target_Demographic = "ExplicitAgeRangesAndGender"
+
+    coordinator.Duration = listening_duration
+    coordinator.Coordinator_Name = coordinator_name
+    coordinator.Start_Trigger_Condition_List = start_trigger_condition_list
+    campaign.custom_coordinator_events.extend(start_trigger_condition_list)
+    if stop_trigger_condition_list:
+        coordinator.Stop_Trigger_Condition_List = stop_trigger_condition_list
+        campaign.custom_coordinator_events.extend(stop_trigger_condition_list)
+    if completion_event:
+        coordinator.Completion_Event = completion_event
+        campaign.custom_coordinator_events.append(completion_event)
+    event.Event_Coordinator_Config = coordinator
+    campaign.add(event)
+
+
 def StandardDiagnostic(
         camp,
         Base_Sensitivity: float = 1.0,
@@ -583,7 +823,7 @@ def StandardDiagnostic(
     """
 
     global schema_path
-    schema_path = (camp.schema_path if camp is not None else schema_path)
+    schema_path = camp.schema_path if camp is not None else schema_path
 
     if Positive_Diagnosis_Intervention is not None and (
             Event_Trigger_Distributed is not None or Event_Trigger_Expired is not None):
@@ -609,9 +849,6 @@ def StandardDiagnostic(
 
         if Positive_Diagnosis_Intervention is None:
             intervention.Positive_Diagnosis_Config = BroadcastEvent(camp, Positive_Diagnosis_Event)
-            # The line below works fine instead of the line above but it just makes testing harder.
-            # intervention.Positive_Diagnosis_Event = camp.get_send_trigger( Positive_Diagnosis_Event,
-            # old=old_adhoc_trigger_style )
             if Event_Trigger_Distributed:
                 intervention.Event_Trigger_Distributed = Event_Trigger_Distributed
             if Event_Trigger_Expired:
@@ -652,7 +889,6 @@ def triggered_campaign_delay_event(camp, start_day, trigger, delay, intervention
                                    Triggers=[camp.get_recv_trigger(trigger, old=True)],
                                    Intervention_List=[delay_iv], Property_Restrictions=ip_targeting,
                                    Demographic_Coverage=coverage)
-
     return event
 
 

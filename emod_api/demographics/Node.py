@@ -218,10 +218,10 @@ class Node(Updateable):
     def _set_fertility_distribution(self, distribution: IndividualAttributes.FertilityDistribution = None):
         self.individual_attributes.fertility_distribution = distribution
 
-    # TODO: if an age distribution is set, we are using a complex distribution (always?).
-    #  Should disable self.individual_attributesage_distribution_flag (None).
-    #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/705
     def _set_age_distribution(self, distribution: IndividualAttributes.AgeDistribution = None):
+        self.individual_attributes.age_distribution_flag = None
+        self.individual_attributes.age_distribution1 = None
+        self.individual_attributes.age_distribution2 = None   
         self.individual_attributes.age_distribution = distribution
 
 

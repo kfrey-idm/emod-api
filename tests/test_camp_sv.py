@@ -19,6 +19,9 @@ class VaccineTest(CampaignTest):
         sv.schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
         camp.set_schema(sv.schema_path)
 
+    def tearDown(self) -> None:
+        camp.set_schema(sv.schema_path)
+
     def test_as_file(self):
         vaccine_type = 'Acquire'
         iv_name = 'simple_vaccine'
@@ -61,7 +64,7 @@ class VaccineTest(CampaignTest):
         box_duration_1 = 88
         event = sv.new_intervention(timestep_1, v_type=v_type_1, efficacy=efficacy_1, sv_name=sv_name_1,
                                     waning_duration=box_duration_1)
-        camp.add(event, first=True)
+        camp.add(event)
 
         timestep_2 = 30
         v_type_2 = "Acquire"
@@ -69,7 +72,7 @@ class VaccineTest(CampaignTest):
         sv_name_2 = "No_Acq_Vacc"
         box_duration_2 = 77
         camp.add(sv.new_intervention(timestep_2, v_type=v_type_2, efficacy=efficacy_2, sv_name=sv_name_2,
-                                     waning_duration=box_duration_2), first=False)
+                                     waning_duration=box_duration_2))
 
         timestep_3 = 60
         v_type_3 = "Transmit"
@@ -77,7 +80,7 @@ class VaccineTest(CampaignTest):
         sv_name_3 = "No_Trans_Vacc"
         box_duration_3 = 66
         camp.add(sv.new_intervention(timestep_3, v_type=v_type_3, efficacy=efficacy_3, sv_name=sv_name_3,
-                                     waning_duration=box_duration_3), first=False)
+                                     waning_duration=box_duration_3),)
 
         timestep_4 = 90
         v_type_4 = "Mortality"
@@ -85,7 +88,7 @@ class VaccineTest(CampaignTest):
         sv_name_4 = "No_Die_Vacc"
         box_duration_4 = 55
         camp.add(sv.new_intervention(timestep_4, v_type=v_type_4, efficacy=efficacy_4, sv_name=sv_name_4,
-                                     waning_duration=box_duration_4), first=False)
+                                     waning_duration=box_duration_4))
 
         camp.save(camp_filename)
         print(f"Check for valid campaign file at: {camp_filename}.")
@@ -153,21 +156,21 @@ class VaccineTest(CampaignTest):
         sv.iv_name = iv_name_1 = "No_Acq_Vacc"
         sv.box_duration = box_duration_1 = 11
         event = sv.new_intervention2(timestep_1)
-        camp.add(event, first=True)
+        camp.add(event)
 
         timestep_2 = 30
         sv.vaccine_type = vaccine_type_2 = "Transmit"
         sv.initial_effect = initial_effect_2 = 0.8
         sv.iv_name = iv_name_2 = "No_Trans_Vacc"
         sv.box_duration = box_duration_2 = 22
-        camp.add(sv.new_intervention2(timestep_2), first=False)
+        camp.add(sv.new_intervention2(timestep_2))
 
         timestep_3 = 60
         sv.vaccine_type = vaccine_type_3 = "MortalityBlocking"
         sv.initial_effect = initial_effect_3 = 0.7
         sv.iv_name = iv_name_3 = "No_Die_Vacc"
         sv.box_duration = box_duration_3 = 33
-        camp.add(sv.new_intervention2(timestep_3), first=False)
+        camp.add(sv.new_intervention2(timestep_3))
 
         camp.save(camp_filename)
         print(f"Check for valid campaign file at: {camp_filename}.")
@@ -217,7 +220,7 @@ class VaccineTest(CampaignTest):
         sv_event = sv.new_intervention(timestep=timestep)
         sv_file = 'simple_vaccine_intervention_parameter.json'
         name = "simple_vaccine_intervention"
-        camp.add(sv_event, name=name, first=True)
+        camp.add(sv_event, name=name)
 
         delete_existing_file(sv_file)
         camp.save(sv_file)
@@ -229,13 +232,13 @@ class VaccineTest(CampaignTest):
 
         intervention_only = sv.new_intervention(timestep=timestep, intervention_only=True)
         intervention_only_file = "sv_intervention_only.json"
-        camp.add(intervention_only, name=name, first=True)
+        camp.add(intervention_only, name=name)
         delete_existing_file(intervention_only_file)
         camp.save(intervention_only_file)
 
         with open(intervention_only_file, 'r') as file:
             campaign = json.load(file)
-            intervention_only_dict = campaign['Events'][0]
+            intervention_only_dict = campaign['Events'][0]['Event_Coordinator_Config']['Intervention_Config']
             intervention_only_defaults = campaign["Use_Defaults"]
 
         for key in sv_dict:

@@ -78,7 +78,7 @@ def new_intervention2(timestep):
 
 
 def new_intervention_as_file(timestep, filename=None):
-    camp.add(new_intervention(timestep, vaccine_type, initial_effect, iv_name, box_duration), first=True)
+    camp.add(new_intervention(timestep, vaccine_type, initial_effect, iv_name, box_duration))
     if filename is None:
         filename = "simple_vaccine.json"
     camp.save(filename)
