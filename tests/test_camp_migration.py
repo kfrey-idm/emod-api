@@ -61,7 +61,7 @@ class MigrationTest(CampaignTest):
         self.assertEqual(intervention_config["Target_Age_Min"], 13)
         self.assertEqual(intervention_config["Target_Age_Max"], 77)
 
-        actual_intervention_config = intervention_config["Actual_IndividualIntervention_Config"]["Actual_IndividualIntervention_Configs"][0]
+        actual_intervention_config = intervention_config["Actual_IndividualIntervention_Config"]
         self.assertEqual(actual_intervention_config["Duration_At_Node_Constant"], 3)
         self.assertEqual(actual_intervention_config["Duration_Before_Leaving_Constant"], 4)
 

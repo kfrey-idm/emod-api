@@ -1,25 +1,28 @@
 from tracemalloc import start
 import emod_api.interventions.utils as utils
+from emod_api.utils import Distributions
 from emod_api import schema_to_class as s2c
 
 import copy
 from typing import List
 
-schema_path=None
-old_adhoc_trigger_style=True
+schema_path = None
+old_adhoc_trigger_style = True
 
 cached_sec = None
 cached_ce = None
-_MAX_AGE=365*125
+_MAX_AGE = 365 * 125
 
 ###
 ### Generic
 ###
 cached_be = None
+
+
 def BroadcastEvent(
         camp,
         Event_Trigger: str = 'Births'
-    ):
+):
     """
         Wrapper function to create and return a BroadcastEvent intervention.
 
@@ -33,18 +36,18 @@ def BroadcastEvent(
     """
 
     if Event_Trigger is None or Event_Trigger == "":
-        raise ValueError( "BroadcastEvent called with an empty Event_Trigger. Please specify a string." )
+        raise ValueError("BroadcastEvent called with an empty Event_Trigger. Please specify a string.")
 
     global cached_be
     if cached_be is None:
         global schema_path
-        schema_path = ( camp.schema_path if camp is not None else schema_path )
-        cached_be = s2c.get_class_with_defaults( "BroadcastEvent", schema_path ) 
+        schema_path = (camp.schema_path if camp is not None else schema_path)
+        cached_be = s2c.get_class_with_defaults("BroadcastEvent", schema_path)
     intervention = copy.deepcopy(cached_be)
     try:
-        intervention.Broadcast_Event = camp.get_send_trigger( Event_Trigger, old=old_adhoc_trigger_style )
+        intervention.Broadcast_Event = camp.get_send_trigger(Event_Trigger, old=old_adhoc_trigger_style)
     except ValueError as ex:
-        raise ValueError( str(ex) + "\n\nMaybe you need to set 'old_adhoc_trigger_style' to false in this module?\n" )
+        raise ValueError(str(ex) + "\n\nMaybe you need to set 'old_adhoc_trigger_style' to false in this module?\n")
     return intervention
 
 
@@ -54,7 +57,7 @@ def BroadcastEventToOtherNodes(
         Node_Selection_Type="DISTANCE_ONLY",
         Max_Distance_To_Other_Nodes_Km=-1,
         Include_My_Node=1
-    ):
+):
     """
         Wrapper function to create and return a BroadcastEventToOtherNodes intervention. 
 
@@ -70,23 +73,26 @@ def BroadcastEventToOtherNodes(
             BroadastEvent intervention ready to be added to a campaign.
     """
     if Event_Trigger is None or Event_Trigger == "":
-        raise ValueError( "BroadcastEventToOtherNodes called with an empty Event_Trigger. Please specify a string." )
+        raise ValueError("BroadcastEventToOtherNodes called with an empty Event_Trigger. Please specify a string.")
 
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
-    intervention = s2c.get_class_with_defaults( "BroadcastEventToOtherNodes", schema_path )
-    intervention.Event_Trigger = camp.get_send_trigger( Event_Trigger, old=old_adhoc_trigger_style )
-    intervention.Node_Selection_Type = Node_Selection_Type 
+    schema_path = (camp.schema_path if camp is not None else schema_path)
+    intervention = s2c.get_class_with_defaults("BroadcastEventToOtherNodes", schema_path)
+    intervention.Event_Trigger = camp.get_send_trigger(Event_Trigger, old=old_adhoc_trigger_style)
+    intervention.Node_Selection_Type = Node_Selection_Type
     if Max_Distance_To_Other_Nodes_Km != -1:
-        intervention.Max_Distance_To_Other_Nodes_Km = Max_Distance_To_Other_Nodes_Km 
-    intervention.Include_My_Node = Include_My_Node 
+        intervention.Max_Distance_To_Other_Nodes_Km = Max_Distance_To_Other_Nodes_Km
+    intervention.Include_My_Node = Include_My_Node
     return intervention
 
+
 cached_mid = None
+
+
 def MultiInterventionDistributor(
         camp,
         Intervention_List
-    ):
+):
     """
         Wrapper function to create and return a MultiInterventionDistributor intervention. 
 
@@ -99,16 +105,16 @@ def MultiInterventionDistributor(
             ReadOnlyDict: Schema-based smart dictionary representing a new 
             MultiInterventionDistributor intervention ready to be added to a campaign.
     """
-   
+
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
-    if Intervention_List is None or type(Intervention_List) is not list or len( Intervention_List ) == 0:
-        raise ValueError( "Intervention_List is empty or None or not a list." )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
+    if Intervention_List is None or type(Intervention_List) is not list or len(Intervention_List) == 0:
+        raise ValueError("Intervention_List is empty or None or not a list.")
     global cached_mid
     if cached_mid is None:
-        cached_mid = s2c.get_class_with_defaults( "MultiInterventionDistributor", schema_path )
-    intervention = copy.deepcopy( cached_mid )
-    intervention.Intervention_List = copy.deepcopy( Intervention_List )
+        cached_mid = s2c.get_class_with_defaults("MultiInterventionDistributor", schema_path)
+    intervention = copy.deepcopy(cached_mid)
+    intervention.Intervention_List = copy.deepcopy(Intervention_List)
     if "Intervention_Name" in Intervention_List[0]:
         intervention.Intervention_Name = Intervention_List[0].Intervention_Name
     else:
@@ -118,35 +124,31 @@ def MultiInterventionDistributor(
 
 def DelayedIntervention(
         camp,
-        Configs,
-        Delay_Dict=None
-    ):
+        Configs: List[dict],
+        Delay_Dict: dict):
     """
         Wrapper function to create and return a DelayedIntervention intervention. 
 
         Args:
             camp: emod_api.campaign object with schema_path set.  
-            Config: Valid intervention config.
-            Delay_Dict: Dictionary of 1 or 2 params that are the literal Delay_Distribution
-            parameters, but without the distribution, which is inferred. E.g., 
-            { "Delay_Period_Exponential": 5 }
+            Configs: A list of individual-level interventions
+            Delay_Dict: Dictionary with delay parameters, please use emod_api.utils.Distributions
+                to generate the delay parameters.
 
         Returns:
             ReadOnlyDict: Schema-based smart dictionary representing a new 
             DelayedIntervention intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
+    if not Configs or not isinstance(Configs, list):
+        raise ValueError("Configs needs to be a list of interventions.\n")
 
-    if Configs is None or type( Configs ) is not list or len( Configs ) == 0:
-        raise ValueError( "Configs is empty or None or not a list." )
-
-    intervention = s2c.get_class_with_defaults( "DelayedIntervention", schema_path )
-    intervention.Actual_IndividualIntervention_Configs = copy.deepcopy( Configs )
-    if Delay_Dict is None:
-        Delay_Dict = { "Delay_Period_Constant": 0 }
-    for param in Delay_Dict:
-        setattr( intervention, param, Delay_Dict[ param ] )
+    intervention = s2c.get_class_with_defaults("DelayedIntervention", schema_path)
+    intervention.Actual_IndividualIntervention_Configs = copy.deepcopy(Configs)
+    # Set the delay parameters
+    Distributions.set_distribution_parameters(distribution_containing_obj=intervention, distribution=Delay_Dict,
+                                              prefix="Delay_Period_")
     return intervention
 
 
@@ -158,7 +160,7 @@ def HSB(
         Tendency=1.0,
         Single_Use=True,
         Name="HSB"
-    ):
+):
     """
         Wrapper function to create and return a HealthSeekingBehaviour intervention. 
 
@@ -177,38 +179,38 @@ def HSB(
             HSB intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
-    intervention = s2c.get_class_with_defaults( "SimpleHealthSeekingBehavior", schema_path )
+    intervention = s2c.get_class_with_defaults("SimpleHealthSeekingBehavior", schema_path)
     intervention.Event_Or_Config = Event_Or_Config
     if intervention.Event_Or_Config == "Event":
-        intervention.Actual_IndividualIntervention_Event = camp.get_send_trigger( Event, old=old_adhoc_trigger_style )
+        intervention.Actual_IndividualIntervention_Event = camp.get_send_trigger(Event, old=old_adhoc_trigger_style)
     else:
         if Config is None:
-            raise ValueError( "You specified 'Config' but no actual Config." )
+            raise ValueError("You specified 'Config' but no actual Config.")
         intervention.Actual_IndividualIntervention_Config = Config
-    intervention.Tendency = Tendency 
-    intervention.Intervention_Name = Name 
-    intervention.Single_Use = Single_Use 
+    intervention.Tendency = Tendency
+    intervention.Intervention_Name = Name
+    intervention.Single_Use = Single_Use
     return intervention
 
 
 def NLHTI(
         camp,
-        Triggers,
-        Interventions,
+        Triggers: List[str],
+        Interventions: List[dict],
         Property_Restrictions=None,
         Demographic_Coverage=1.0,
-        Target_Age_Min=0,
-        Target_Age_Max=_MAX_AGE,
+        Target_Age_Min: float = 0,
+        Target_Age_Max: float = _MAX_AGE,
         Target_Gender="All",
         Target_Residents_Only=False,
-        Duration=-1,
+        Duration: float = -1,
         Blackout_Event_Trigger=None,
         Blackout_Period=None,
         Blackout_On_First_Occurrence=None,
         Disqualifying_Properties=None,
-    ):
+):
     """
         Wrapper function to create and return a NodeLevelHealthTriggeredIntervention intervention. 
 
@@ -233,38 +235,39 @@ def NLHTI(
             NLHTI intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
-    intervention = s2c.get_class_with_defaults( "NodeLevelHealthTriggeredIV", schema_path )
-    intervention.Trigger_Condition_List = [ camp.get_recv_trigger( trigger, old=old_adhoc_trigger_style ) for trigger in Triggers ]
+    intervention = s2c.get_class_with_defaults("NodeLevelHealthTriggeredIV", schema_path)
+    intervention.Trigger_Condition_List = [camp.get_recv_trigger(trigger, old=old_adhoc_trigger_style) for trigger in
+                                           Triggers]
     if Target_Age_Min > 0 or Target_Age_Max < _MAX_AGE:
-        intervention.Target_Age_Min = Target_Age_Min 
+        intervention.Target_Age_Min = Target_Age_Min
         intervention.Target_Age_Max = Target_Age_Max
     if Target_Gender != "All":
-        intervention.Target_Gender = Target_Gender 
+        intervention.Target_Gender = Target_Gender
         intervention.Target_Demographic = "ExplicitAgeRangesAndGender"
-    intervention.Target_Residents_Only = Target_Residents_Only 
-    intervention.Demographic_Coverage = Demographic_Coverage 
+    intervention.Target_Residents_Only = Target_Residents_Only
+    intervention.Demographic_Coverage = Demographic_Coverage
     intervention.Duration = Duration
     intervention.Blackout_Event_Trigger = Blackout_Event_Trigger
     intervention.Blackout_Period = Blackout_Period
     intervention.Blackout_On_First_Occurrence = Blackout_On_First_Occurrence
-    prs = utils._convert_prs( Property_Restrictions )
-    if len(prs)>0 and type(prs[0]) is dict:
+    prs = utils._convert_prs(Property_Restrictions)
+    if len(prs) > 0 and type(prs[0]) is dict:
         intervention.Property_Restrictions_Within_Node = prs
-        intervention.pop( "Property_Restrictions" )
+        intervention.pop("Property_Restrictions")
     else:
         intervention.Property_Restrictions = prs
         if "Property_Restrictions_Within_Node" in intervention:
-            intervention.pop( "Property_Restrictions_Within_Node" )
+            intervention.pop("Property_Restrictions_Within_Node")
     if len(Interventions) == 1:
         intervention.Actual_IndividualIntervention_Config = Interventions[0]
     else:
-        intervention.Actual_IndividualIntervention_Config = MultiInterventionDistributor( camp, Interventions )
+        intervention.Actual_IndividualIntervention_Config = MultiInterventionDistributor(camp, Interventions)
 
     return intervention
 
- 
+
 def PropertyValueChanger(
         camp,
         Target_Property_Key,
@@ -275,17 +278,19 @@ def PropertyValueChanger(
         Intervention_Name="",
         Event_Trigger_Distributed="",
         Event_Trigger_Expired=""
-    ):
+):
     """
         Wrapper function to create and return a PropertyValueChanger intervention. 
 
         Args:
             camp: emod_api.campaign object with schema_path set. 
             Target_Property_Key. The key part of the new key-value pair of the IP.
+            Target_Property_Key. The key part of the new key-value pair of the IP.
             Target_Property_Value. The value part of the new key-value pair of the IP.
             New_Property_Value.. Optional IP key:value part to be set, common to all interventions.
             Daily_Probability. The daily probability that an individual will move to the Target_Property_Value.
-            Maximum_Duration. The maximum amount of time individuals have to move to a new group. This timing works in conjunction with Daily_Probability.
+            Maximum_Duration. The maximum amount of time individuals have to move to a new group. This timing works
+                in conjunction with Daily_Probability.
             Revert.  The number of days before an individual moves back to their original group.
             Intervention_Name. Optional Intervention_Name. Useful if managing a replacement policy.
             Event_Trigger_Distributed. Optional broadcast trigger to be published when PVC is distributed.
@@ -296,21 +301,21 @@ def PropertyValueChanger(
             PropertyValueChanger intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
-    intervention = s2c.get_class_with_defaults( "PropertyValueChanger", schema_path )
+    intervention = s2c.get_class_with_defaults("PropertyValueChanger", schema_path)
     intervention.Target_Property_Key = Target_Property_Key
     intervention.Target_Property_Value = Target_Property_Value
-    intervention.Daily_Probability = Daily_Probability 
-    intervention.Maximum_Duration=Maximum_Duration
+    intervention.Daily_Probability = Daily_Probability
+    intervention.Maximum_Duration = Maximum_Duration
     if Revert != -1:
-        intervention.Revert=Revert
-    if len(Intervention_Name)>0:
-        intervention.Intervention_Name=Intervention_Name
-    if len(Event_Trigger_Distributed)>0:
-        intervention.Event_Trigger_Distributed=Event_Trigger_Distributed
-    if len(Event_Trigger_Expired)>0:
-        intervention.Event_Trigger_Expired=Event_Trigger_Expired
+        intervention.Revert = Revert
+    if len(Intervention_Name) > 0:
+        intervention.Intervention_Name = Intervention_Name
+    if len(Event_Trigger_Distributed) > 0:
+        intervention.Event_Trigger_Distributed = Event_Trigger_Distributed
+    if len(Event_Trigger_Expired) > 0:
+        intervention.Event_Trigger_Expired = Event_Trigger_Expired
 
     return intervention
 
@@ -318,19 +323,18 @@ def PropertyValueChanger(
 def ScheduledCampaignEvent(
         camp,
         Start_Day: int,
-        Node_Ids = None,
-        Nodeset_Config = None,
+        Node_Ids=None,
+        Nodeset_Config=None,
         Number_Repetitions: int = 1,
         Timesteps_Between_Repetitions: int = -1,
-        Event_Name: str = "Scheduled_Campaign_Event", # not set, doesn't exist in schema
-        Property_Restrictions = None,
-        Demographic_Coverage:float = 1.0,
+        Event_Name: str = "Scheduled_Campaign_Event",  # not set, doesn't exist in schema
+        Property_Restrictions=None,
+        Demographic_Coverage: float = 1.0,
         Target_Age_Min=0,
         Target_Age_Max=_MAX_AGE,
-        Target_Gender:str = "All",
-        Target_Residents_Only:bool = False,
+        Target_Gender: str = "All",
+        Target_Residents_Only: bool = False,
         Intervention_List=None):
-
     """
         Wrapper function to create and return a ScheduledCampaignEvent intervention. 
         The alternative to a ScheduledCampaignEvent is a TriggeredCampaignEvent.
@@ -360,19 +364,19 @@ def ScheduledCampaignEvent(
             ScheduledCampaignEvent intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
     # Not checking Intervention_list because MultiInterventionDistributor checks
 
-    event = s2c.get_class_with_defaults( "CampaignEvent", schema_path )
+    event = s2c.get_class_with_defaults("CampaignEvent", schema_path)
     global cached_sec
     if cached_sec is None:
-        cached_sec = s2c.get_class_with_defaults( "StandardEventCoordinator", schema_path )
+        cached_sec = s2c.get_class_with_defaults("StandardEventCoordinator", schema_path)
 
-    coordinator = copy.deepcopy( cached_sec )
+    coordinator = copy.deepcopy(cached_sec)
     coordinator.Demographic_Coverage = Demographic_Coverage
-    coordinator.Number_Repetitions=Number_Repetitions
-    coordinator.Timesteps_Between_Repetitions=Timesteps_Between_Repetitions
+    coordinator.Number_Repetitions = Number_Repetitions
+    coordinator.Timesteps_Between_Repetitions = Timesteps_Between_Repetitions
 
     # Second, hook them up
     event.Event_Coordinator_Config = coordinator
@@ -390,18 +394,18 @@ def ScheduledCampaignEvent(
         node_ids = Node_Ids
         event.Nodeset_Config = utils.do_nodes(camp.schema_path, node_ids)
 
-    if len(Intervention_List)>1:
-        coordinator.Intervention_Config = MultiInterventionDistributor( camp, Intervention_List ) 
+    if len(Intervention_List) > 1:
+        coordinator.Intervention_Config = MultiInterventionDistributor(camp, Intervention_List)
     else:
         coordinator.Intervention_Config = Intervention_List[0]
-    prs = utils._convert_prs( Property_Restrictions )
-    if len(prs)>0 and type(prs[0]) is dict:
+    prs = utils._convert_prs(Property_Restrictions)
+    if len(prs) > 0 and type(prs[0]) is dict:
         coordinator.Property_Restrictions_Within_Node = prs
-        coordinator.pop( "Property_Restrictions" )
+        coordinator.pop("Property_Restrictions")
     else:
         coordinator.Property_Restrictions = prs
-        coordinator.pop( "Property_Restrictions_Within_Node" )
-    
+        coordinator.pop("Property_Restrictions_Within_Node")
+
     coordinator.Demographic_Coverage = Demographic_Coverage
 
     if Target_Age_Min > 0 or Target_Age_Max < _MAX_AGE:
@@ -411,12 +415,13 @@ def ScheduledCampaignEvent(
         coordinator.Target_Age_Max = Target_Age_Max
 
     if Target_Gender != "All":
-        coordinator.Target_Gender = Target_Gender 
+        coordinator.Target_Gender = Target_Gender
         coordinator.Target_Demographic = "ExplicitAgeRangesAndGender"
 
     coordinator.Target_Residents_Only = Target_Residents_Only
-    
+
     return event
+
 
 def TriggeredCampaignEvent(
         camp,
@@ -424,24 +429,24 @@ def TriggeredCampaignEvent(
         Event_Name: str,
         Triggers: List[str],
         Intervention_List: List[dict],
-        Node_Ids=None,
-        Nodeset_Config=None,
-        Node_Property_Restrictions=None,
-        Property_Restrictions=None,
+        Node_Ids: List[int] = None,
+        Nodeset_Config: dict = None,
+        Node_Property_Restrictions: List[dict] = None,
+        Property_Restrictions: List[dict] = None,
         Number_Repetitions: int = 1,
         Timesteps_Between_Repetitions: int = -1,
-        Demographic_Coverage: float=1.0,
-        Target_Age_Min=0,
-        Target_Age_Max=_MAX_AGE,
-        Target_Gender: str ="All",
-        Target_Residents_Only=False,
-        Duration=-1,
-        Blackout_Event_Trigger: str=None,
-        Blackout_Period=0,
+        Demographic_Coverage: float = 1.0,
+        Target_Age_Min: float = 0,
+        Target_Age_Max: float = _MAX_AGE,
+        Target_Gender: str = "All",
+        Target_Residents_Only: bool = False,
+        Duration: float = -1,
+        Blackout_Event_Trigger: str = None,
+        Blackout_Period: float = 0,
         Blackout_On_First_Occurrence=0,
-        Disqualifying_Properties=None,
-        Delay=None
-    ):
+        Disqualifying_Properties: List[str] = None,
+        Delay: dict = None
+):
     """
         Wrapper function to create and return a TriggeredCampaignEvent intervention. 
         The alternative to a TriggeredCampaignEvent is a ScheduledCampaignEvent.
@@ -457,7 +462,7 @@ def TriggeredCampaignEvent(
                    Use parameter Node_Ids instead
 
             Triggers: List of triggers/events/signals to listen to in order to trigger distribution.
-            Intervention_List: List of 1 or more valid intervention dictionaries to be
+            Intervention_List: List of 1 or more valid individual-level intervention dictionaries to be
             distributed together. 
             Node_Property_Restrictions: N/A.
             Property_Restrictions: Individual Properties a person must have to receive the intervention(s).
@@ -471,23 +476,24 @@ def TriggeredCampaignEvent(
             Blackout_Period: Not used.
             Blackout_On_First_Occurrence: Not used.
             Disqualifying_Properties: Not used.
-            delay: Optional delay between trigger and actual distribution.
+            Delay: Optional delay between trigger and actual distribution, a distribution dictionary generated by
+                emod_api.utils.Distributions class.
 
         Returns:
             ReadOnlyDict: Schema-based smart dictionary representing a new 
             TriggeredCampaignEvent intervention ready to be added to a campaign.
     """
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
     if Node_Property_Restrictions is None:
-        Node_Property_Restrictions=[]
+        Node_Property_Restrictions = []
     if Property_Restrictions is None:
-        Property_Restrictions=[]
+        Property_Restrictions = []
 
     global cached_ce
     if cached_ce is None:
-        cached_ce = s2c.get_class_with_defaults( "CampaignEvent", schema_path )
+        cached_ce = s2c.get_class_with_defaults("CampaignEvent", schema_path)
     event = copy.deepcopy(cached_ce)
     event.Start_Day = float(Start_Day)
 
@@ -505,25 +511,30 @@ def TriggeredCampaignEvent(
 
     global cached_sec
     if cached_sec is None:
-        cached_sec = s2c.get_class_with_defaults( "StandardEventCoordinator", schema_path )
+        cached_sec = s2c.get_class_with_defaults("StandardEventCoordinator", schema_path)
     coordinator = copy.deepcopy(cached_sec)
     coordinator.Number_Repetitions = Number_Repetitions
     coordinator.Timesteps_Between_Repetitions = Timesteps_Between_Repetitions
 
-    if Delay is not None:
-        Intervention_List = [ DelayedIntervention( camp, Intervention_List, Delay_Dict = { "Delay_Period_Constant": Delay } ) ]
+    if Delay:
+        if isinstance(Delay, dict):
+            Intervention_List = [DelayedIntervention(camp, Intervention_List, Delay_Dict=Delay)]
+        elif isinstance(Delay, int) or isinstance(Delay, float):
+            Intervention_List = [DelayedIntervention(camp, Intervention_List, Delay_Dict=Distributions.constant(Delay))]
+        else:
+            raise AssertionError(f"Delay must be a dictionary or a number. It is {type(Delay)}.\n")
 
     intervention = NLHTI(
         camp,
         Triggers,
         Intervention_List,
         Duration=Duration,
-        Property_Restrictions = Property_Restrictions,
-        Demographic_Coverage = Demographic_Coverage,
-        Target_Age_Min = Target_Age_Min,
-        Target_Age_Max = Target_Age_Max,
-        Target_Gender = Target_Gender,
-        Target_Residents_Only = Target_Residents_Only,
+        Property_Restrictions=Property_Restrictions,
+        Demographic_Coverage=Demographic_Coverage,
+        Target_Age_Min=Target_Age_Min,
+        Target_Age_Max=Target_Age_Max,
+        Target_Gender=Target_Gender,
+        Target_Residents_Only=Target_Residents_Only,
         Blackout_Event_Trigger=Blackout_Event_Trigger,
         Blackout_Period=Blackout_Period,
         Blackout_On_First_Occurrence=Blackout_On_First_Occurrence
@@ -533,19 +544,20 @@ def TriggeredCampaignEvent(
     coordinator.Intervention_Config = intervention
     return event
 
+
 def StandardDiagnostic(
         camp,
-        Base_Sensitivity: float=1.0,
-        Base_Specificity: float=1.0,
-        Days_To_Diagnosis: float=0.0,
+        Base_Sensitivity: float = 1.0,
+        Base_Specificity: float = 1.0,
+        Days_To_Diagnosis: float = 0.0,
         Event_Trigger_Distributed: str = None,
         Event_Trigger_Expired: str = None,
-        Positive_Diagnosis_Intervention = None,
+        Positive_Diagnosis_Intervention=None,
         Positive_Diagnosis_Event: str = "PositiveResult",
-        Negative_Diagnosis_Intervention = None,
+        Negative_Diagnosis_Intervention=None,
         Negative_Diagnosis_Event: str = "NegativeResult",
-        Treatment_Fraction: float=1.0
-    ):
+        Treatment_Fraction: float = 1.0
+):
     """
         Wrapper function to create and return a StandardDiagnostic intervention. 
 
@@ -556,11 +568,13 @@ def StandardDiagnostic(
             Days_To_Diagnosis: days to diagnosis
             Event_Trigger_Distributed: A trigger that is fired when intervention was distributed
             Event_Trigger_Expired: A trigger that is fired when intervention has expired
-            Positive_Diagnosis_Intervention: Intervention that is distributed in case of a positive diagnosis. If set, no events may be configured.
+            Positive_Diagnosis_Intervention: Intervention that is distributed in case of a positive diagnosis.
+                If set, no events may be configured.
             Positive_Diagnosis_Event: A trigger that is fired in case of a positive diagnosis
-            Negative_Diagnosis_Intervention: Intervention that is distributed in case of a Negative diagnosis. If set, no events may be configured. 
-                Not used outside of Malaria-Ongoing yet.
-            Negative_Diagnosis_Event: A trigger that is fired in case of a Negative diagnosis. Not used outside of Malaria-Ongoing yet.
+            Negative_Diagnosis_Intervention: Intervention that is distributed in case of a Negative diagnosis.
+                If set, no events may be configured.  Not used outside of Malaria-Ongoing yet.
+            Negative_Diagnosis_Event: A trigger that is fired in case of a Negative diagnosis. Not used outside of
+                Malaria-Ongoing yet.
             Treatment_Fraction: treatment fraction [0..1]
 
         Returns:
@@ -569,23 +583,24 @@ def StandardDiagnostic(
     """
 
     global schema_path
-    schema_path = ( camp.schema_path if camp is not None else schema_path )
+    schema_path = (camp.schema_path if camp is not None else schema_path)
 
-    if Positive_Diagnosis_Intervention is not None and (Event_Trigger_Distributed is not None or Event_Trigger_Expired is not None):
-        raise Exception("Events and intervention are configured. Configuration of events and intervention are mutually exclusive.")
-
+    if Positive_Diagnosis_Intervention is not None and (
+            Event_Trigger_Distributed is not None or Event_Trigger_Expired is not None):
+        raise Exception(
+            "Events and intervention are configured. Configuration of events and intervention are mutually exclusive.")
 
     # First, get the objects
     # Only in Malaria-Ongoing the class is called StandardDiagnostic
     try:
         intervention = s2c.get_class_with_defaults("StandardDiagnostic", schema_path)
         if Positive_Diagnosis_Intervention is None:
-            intervention.Positive_Diagnosis_Config = BroadcastEvent( camp, Positive_Diagnosis_Event )
+            intervention.Positive_Diagnosis_Config = BroadcastEvent(camp, Positive_Diagnosis_Event)
         else:
             intervention.Positive_Diagnosis_Config = Positive_Diagnosis_Intervention
 
         if Negative_Diagnosis_Intervention is None:
-            intervention.Negative_Diagnosis_Config = BroadcastEvent( camp, Negative_Diagnosis_Event )
+            intervention.Negative_Diagnosis_Config = BroadcastEvent(camp, Negative_Diagnosis_Event)
         else:
             intervention.Negative_Diagnosis_Config = Negative_Diagnosis_Intervention
     except ValueError:
@@ -593,9 +608,10 @@ def StandardDiagnostic(
         intervention = s2c.get_class_with_defaults("SimpleDiagnostic", schema_path)
 
         if Positive_Diagnosis_Intervention is None:
-            intervention.Positive_Diagnosis_Config = BroadcastEvent( camp, Positive_Diagnosis_Event )
+            intervention.Positive_Diagnosis_Config = BroadcastEvent(camp, Positive_Diagnosis_Event)
             # The line below works fine instead of the line above but it just makes testing harder.
-            #intervention.Positive_Diagnosis_Event = camp.get_send_trigger( Positive_Diagnosis_Event, old=old_adhoc_trigger_style )
+            # intervention.Positive_Diagnosis_Event = camp.get_send_trigger( Positive_Diagnosis_Event,
+            # old=old_adhoc_trigger_style )
             if Event_Trigger_Distributed:
                 intervention.Event_Trigger_Distributed = Event_Trigger_Distributed
             if Event_Trigger_Expired:
@@ -611,27 +627,34 @@ def StandardDiagnostic(
     return intervention
 
 
-def triggered_campaign_delay_event( camp, start_day, trigger, delay, intervention, ip_targeting=[], coverage=1.0 ):
+def triggered_campaign_delay_event(camp, start_day, trigger, delay, intervention, ip_targeting=None, coverage=1.0):
     """
         Create and return a campaign event that responds to a trigger after a delay with an intervention.
 
         Args:
             camp: emod_api.campaign object with schema_path set.
-            start_day: When to start.
-            delay: Dictionary of 1 or 2 params that are the literal Delay_Distribution parameters, 
-            but without the distribution, which is inferred. E.g., { "Delay_Period_Exponential": 5 }.
+            start_day: Day the event will start.
+            delay: Dictionary with delay parameters, please use emod_api.utils.Distributions
+                to generate the delay parameters.
             trigger: E.g., "NewInfection".
             intervention: List of 1 or more valid intervention dictionaries to be distributed together. 
-            ip_targeting: Optional Individual Properties required for someone to receive the intervntion(s).
+            ip_targeting: Optional Individual Properties required for someone to receive the intervention(s).
+            coverage: Fraction of the population that will receive the intervention.
 
         Returns:
             Campaign event.
 
     """
-    delay_iv = DelayedIntervention( camp, Configs=[intervention], Delay_Dict = delay )
-    event = TriggeredCampaignEvent( camp, Start_Day=start_day, Event_Name="triggered_delayed_intervention", Triggers=[ camp.get_recv_trigger( trigger, old=True ) ], Intervention_List=[delay_iv], Property_Restrictions=ip_targeting, Demographic_Coverage=coverage )
+    if not ip_targeting:
+        ip_targeting = []
+    delay_iv = DelayedIntervention(camp, Configs=[intervention], Delay_Dict=delay)
+    event = TriggeredCampaignEvent(camp, Start_Day=start_day, Event_Name="triggered_delayed_intervention",
+                                   Triggers=[camp.get_recv_trigger(trigger, old=True)],
+                                   Intervention_List=[delay_iv], Property_Restrictions=ip_targeting,
+                                   Demographic_Coverage=coverage)
 
     return event
+
 
 #
 # The following function is intended to replace triggered_campaign_delay_event.
@@ -644,21 +667,21 @@ def triggered_campaign_delay_event( camp, start_day, trigger, delay, interventio
 #         triggered_campaign_event_with_optional_delay
 #             TriggeredCampaignEvent()
 
-def triggered_campaign_event_with_optional_delay( camp,
-                                                  start_day,
-                                                  triggers,
-                                                  intervention,
-                                                  delay=None,
-                                                  duration=-1,
-                                                  ip_targeting=None,
-                                                  coverage=1.0,
-                                                  target_age_min=0,
-                                                  target_age_max=_MAX_AGE,
-                                                  target_sex="All",
-                                                  target_residents_only=False,
-                                                  blackout=True,
-                                                  check_at_trigger=False
-                                                ):
+def triggered_campaign_event_with_optional_delay(camp,
+                                                 start_day,
+                                                 triggers,
+                                                 intervention,
+                                                 delay=None,
+                                                 duration=-1,
+                                                 ip_targeting=None,
+                                                 coverage=1.0,
+                                                 target_age_min=0,
+                                                 target_age_max=_MAX_AGE,
+                                                 target_sex="All",
+                                                 target_residents_only=False,
+                                                 blackout=True,
+                                                 check_at_trigger=False
+                                                 ):
     """
         Create and return a campaign event that responds to a trigger after a delay with an intervention.
 
@@ -690,18 +713,30 @@ def triggered_campaign_event_with_optional_delay( camp,
     """
     if delay:
         # If delay is just a number, convert to dict.
-        delay_iv = DelayedIntervention( camp, Configs=[intervention], Delay_Dict = delay )
-        event = TriggeredCampaignEvent( camp, Start_Day=start_day, Event_Name="Delayed Triggered Intervention", Triggers=triggers, Intervention_List=[delay_iv], Property_Restrictions=ip_targeting, Demographic_Coverage=coverage, Target_Age_Min=target_age_min, Target_Age_Max=target_age_max, Target_Gender=target_sex, Target_Residents_Only=target_residents_only, Duration=duration )
+        delay_iv = DelayedIntervention(camp, Configs=[intervention], Delay_Dict=delay)
+        event = TriggeredCampaignEvent(camp, Start_Day=start_day, Event_Name="Delayed Triggered Intervention",
+                                       Triggers=triggers, Intervention_List=[delay_iv],
+                                       Property_Restrictions=ip_targeting, Demographic_Coverage=coverage,
+                                       Target_Age_Min=target_age_min, Target_Age_Max=target_age_max,
+                                       Target_Gender=target_sex, Target_Residents_Only=target_residents_only,
+                                       Duration=duration)
     else:
-        event = TriggeredCampaignEvent( camp, Start_Day=start_day, Event_Name="Immediate Triggered Intervention", Triggers=triggers, Intervention_List=[intervention], Property_Restrictions=ip_targeting, Demographic_Coverage=coverage, Target_Age_Min=target_age_min, Target_Age_Max=target_age_max, Target_Gender=target_sex, Target_Residents_Only=target_residents_only, Duration=duration )
+        event = TriggeredCampaignEvent(camp, Start_Day=start_day, Event_Name="Immediate Triggered Intervention",
+                                       Triggers=triggers, Intervention_List=[intervention],
+                                       Property_Restrictions=ip_targeting, Demographic_Coverage=coverage,
+                                       Target_Age_Min=target_age_min, Target_Age_Max=target_age_max,
+                                       Target_Gender=target_sex, Target_Residents_Only=target_residents_only,
+                                       Duration=duration)
 
     return event
 
 
-def change_individual_property_at_age( camp, new_ip_key, new_ip_value, change_age_in_days, revert_in_days, ip_targeting_key, ip_targeting_value, coverage=1.0 ):
+def change_individual_property_at_age(camp, new_ip_key, new_ip_value, change_age_in_days, revert_in_days,
+                                      ip_targeting_key, ip_targeting_value, coverage=1.0):
     """
         Create and return a campaign event that changes a person's Individual Properties once they turns a certain age. 
-        e.g., change_individual_property_at_age(cb, 'ForestGoing', 'LovesForest', coverage=0.6, change_age_in_days=15*365, revert=20*365)
+        e.g., change_individual_property_at_age(cb, 'ForestGoing', 'LovesForest', coverage=0.6,
+        change_age_in_days=15*365, revert=20*365)
 
         Args:
             camp: emod_api.campaign object with schema_path set.
@@ -717,34 +752,37 @@ def change_individual_property_at_age( camp, new_ip_key, new_ip_value, change_ag
             Campaign event.
 
     """
-    iv = PropertyValueChanger( camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value, Revert=revert_in_days)
+    iv = PropertyValueChanger(camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value,
+                              Revert=revert_in_days)
     # TBD: migrate this to use triggered_campaign_event_with_optional_delay
-    return triggered_campaign_delay_event( camp, start_day=1, trigger="Births", coverage=coverage, delay={ "Delay_Period_Constant": change_age_in_days }, intervention=iv, ip_targeting={ ip_targeting_key : ip_targeting_value } )
+    return triggered_campaign_delay_event(camp, start_day=1, trigger="Births", coverage=coverage,
+                                          delay={"Delay_Period_Constant": change_age_in_days}, intervention=iv,
+                                          ip_targeting={ip_targeting_key: ip_targeting_value})
 
 
-def change_individual_property_triggered( camp,
-                                          triggers: list,
-                                          new_ip_key: str,
-                                          new_ip_value: str,
-                                          start_day: int=0, 
-                                          daily_prob: float=1,
-                                          max_duration: int=9.3228e+35,
-                                          revert_in_days:int=-1,
+def change_individual_property_triggered(camp,
+                                         triggers: list,
+                                         new_ip_key: str,
+                                         new_ip_value: str,
+                                         start_day: int = 0,
+                                         daily_prob: float = 1,
+                                         max_duration: int = 9.3228e+35,
+                                         revert_in_days: int = -1,
 
-                                          node_ids: list=None, # where
+                                         node_ids: list = None,  # where
 
-                                          ip_restrictions:list=None,
-                                          coverage: float=1.0,
-                                          target_age_min: float=0,
-                                          target_age_max: float=_MAX_AGE,
-                                          target_sex: str="All",
-                                          target_residents_only: bool=False,
+                                         ip_restrictions: list = None,
+                                         coverage: float = 1.0,
+                                         target_age_min: float = 0,
+                                         target_age_max: float = _MAX_AGE,
+                                         target_sex: str = "All",
+                                         target_residents_only: bool = False,
 
-                                          delay=None,
-                                          listening_duration: int=-1,
-                                          blackout: bool=True,
-                                          check_at_trigger: bool=False
-    ):
+                                         delay=None,
+                                         listening_duration: int = -1,
+                                         blackout: bool = True,
+                                         check_at_trigger: bool = False
+                                         ):
     """
         Change Individual Properties when a certain trigger is observed.
 
@@ -789,28 +827,35 @@ def change_individual_property_triggered( camp,
             N/A.
     """
 
-    iv = PropertyValueChanger( camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value, Daily_Probability=daily_prob, Maximum_Duration=max_duration, Revert=revert_in_days)
-    tce = triggered_campaign_event_with_optional_delay( camp, start_day=start_day, intervention=iv, triggers=triggers, delay=delay, ip_targeting=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max, target_sex=target_sex, target_residents_only=target_residents_only, duration=listening_duration, blackout=blackout, check_at_trigger=check_at_trigger )
-    camp.add( tce )
+    iv = PropertyValueChanger(camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value,
+                              Daily_Probability=daily_prob, Maximum_Duration=max_duration, Revert=revert_in_days)
+    tce = triggered_campaign_event_with_optional_delay(camp, start_day=start_day, intervention=iv, triggers=triggers,
+                                                       delay=delay, ip_targeting=ip_restrictions, coverage=coverage,
+                                                       target_age_min=target_age_min, target_age_max=target_age_max,
+                                                       target_sex=target_sex,
+                                                       target_residents_only=target_residents_only,
+                                                       duration=listening_duration, blackout=blackout,
+                                                       check_at_trigger=check_at_trigger)
+    camp.add(tce)
 
 
-def change_individual_property_scheduled( camp,
-                                          new_ip_key,
-                                          new_ip_value,
-                                          start_day: int=0,
-                                          number_repetitions: int = 1,
-                                          timesteps_between_reps: int = -1,
-                                          node_ids: list=None, # where
-                                          daily_prob: float=1,
-                                          max_duration: int=9.3228e+35,
-                                          revert_in_days:int=-1,
-                                          ip_restrictions:list=None,
-                                          coverage: float=1.0,
-                                          target_age_min: float=0,
-                                          target_age_max: float=_MAX_AGE,
-                                          target_sex: str="All",
-                                          target_residents_only: bool=False
-    ):
+def change_individual_property_scheduled(camp,
+                                         new_ip_key,
+                                         new_ip_value,
+                                         start_day: int = 0,
+                                         number_repetitions: int = 1,
+                                         timesteps_between_reps: int = -1,
+                                         node_ids: list = None,  # where
+                                         daily_prob: float = 1,
+                                         max_duration: int = 9.3228e+35,
+                                         revert_in_days: int = -1,
+                                         ip_restrictions: list = None,
+                                         coverage: float = 1.0,
+                                         target_age_min: float = 0,
+                                         target_age_max: float = _MAX_AGE,
+                                         target_sex: str = "All",
+                                         target_residents_only: bool = False
+                                         ):
     """
         Change Individual Properties at a given time.
 
@@ -844,32 +889,38 @@ def change_individual_property_scheduled( camp,
 
     """
 
-    iv = PropertyValueChanger( camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value, Daily_Probability=daily_prob, Maximum_Duration=max_duration, Revert=revert_in_days)
-    sce = ScheduledCampaignEvent( camp, Intervention_List=[iv], Start_Day=start_day, Node_Ids=node_ids, Number_Repetitions=number_repetitions, Timesteps_Between_Repetitions=timesteps_between_reps, Property_Restrictions=ip_restrictions, Demographic_Coverage=coverage, Target_Age_Min=target_age_min, Target_Age_Max=target_age_max, Target_Gender=target_sex, Target_Residents_Only=target_residents_only )
-    camp.add( sce )
+    iv = PropertyValueChanger(camp, Target_Property_Key=new_ip_key, Target_Property_Value=new_ip_value,
+                              Daily_Probability=daily_prob, Maximum_Duration=max_duration, Revert=revert_in_days)
+    sce = ScheduledCampaignEvent(camp, Intervention_List=[iv], Start_Day=start_day, Node_Ids=node_ids,
+                                 Number_Repetitions=number_repetitions,
+                                 Timesteps_Between_Repetitions=timesteps_between_reps,
+                                 Property_Restrictions=ip_restrictions, Demographic_Coverage=coverage,
+                                 Target_Age_Min=target_age_min, Target_Age_Max=target_age_max, Target_Gender=target_sex,
+                                 Target_Residents_Only=target_residents_only)
+    camp.add(sce)
+
 
 def change_individual_property(camp,
-                               target_property_name: str, # what...
+                               target_property_name: str,  # what...
                                target_property_value: str,
-                               start_day: int=0, # when
+                               start_day: int = 0,  # when
                                number_repetitions: int = 1,
                                timesteps_between_reps: int = -1,
-                               node_ids: list=None, # where
-                               daily_prob: float=1,
-                               max_duration: int=9.3228e+35,
-                               revert: int=-1,
-                               coverage: float=1, # who
-                               ip_restrictions: list=None,
-                               target_age_min: float=0,
-                               target_age_max: float=_MAX_AGE,
-                               target_sex: str="All",
-                               target_residents_only: bool=False,
-                               trigger_condition_list: list=None, # the why...
-                               triggered_campaign_delay: int=0, # (well, kind of when again)
-                               listening_duration: int=-1,
-                               blackout_flag: bool=True, # advanced trigger stuff
-                               check_eligibility_at_trigger: bool=False):
-
+                               node_ids: list = None,  # where
+                               daily_prob: float = 1,
+                               max_duration: int = 9.3228e+35,
+                               revert: int = -1,
+                               coverage: float = 1,  # who
+                               ip_restrictions: list = None,
+                               target_age_min: float = 0,
+                               target_age_max: float = _MAX_AGE,
+                               target_sex: str = "All",
+                               target_residents_only: bool = False,
+                               trigger_condition_list: list = None,  # the why...
+                               triggered_campaign_delay: int = 0,  # (well, kind of when again)
+                               listening_duration: int = -1,
+                               blackout_flag: bool = True,  # advanced trigger stuff
+                               check_eligibility_at_trigger: bool = False):
     """
         Add an intervention that changes the individual property value to another on a
         particular day OR after a triggering event using the
@@ -928,40 +979,40 @@ def change_individual_property(camp,
     """
 
     if trigger_condition_list:
-        return change_individual_property_triggered( camp,
-                                                     start_day=start_day,
-                                                     coverage=coverage,
-                                                     max_duration=max_duration,
-                                                     daily_prob=daily_prob,
-                                                     triggers=trigger_condition_list,
-                                                     new_ip_key=target_property_name,
-                                                     new_ip_value=target_property_value,
-                                                     revert_in_days=revert,
-                                                     ip_restrictions=ip_restrictions,
-                                                     target_age_min=target_age_min,
-                                                     target_age_max=target_age_max,
-                                                     target_sex=target_sex,
-                                                     target_residents_only=target_residents_only,
-                                                     delay=triggered_campaign_delay,
-                                                     listening_duration=listening_duration,
-                                                     blackout=blackout_flag,
-                                                     check_at_trigger=check_eligibility_at_trigger,
-                                                     node_ids=node_ids)
+        return change_individual_property_triggered(camp,
+                                                    start_day=start_day,
+                                                    coverage=coverage,
+                                                    max_duration=max_duration,
+                                                    daily_prob=daily_prob,
+                                                    triggers=trigger_condition_list,
+                                                    new_ip_key=target_property_name,
+                                                    new_ip_value=target_property_value,
+                                                    revert_in_days=revert,
+                                                    ip_restrictions=ip_restrictions,
+                                                    target_age_min=target_age_min,
+                                                    target_age_max=target_age_max,
+                                                    target_sex=target_sex,
+                                                    target_residents_only=target_residents_only,
+                                                    delay=triggered_campaign_delay,
+                                                    listening_duration=listening_duration,
+                                                    blackout=blackout_flag,
+                                                    check_at_trigger=check_eligibility_at_trigger,
+                                                    node_ids=node_ids)
     else:
-        return change_individual_property_scheduled( camp,
-                                                     start_day=start_day,
-                                                     coverage=coverage,
-                                                     max_duration=max_duration,
-                                                     daily_prob=daily_prob,
-                                                     number_repetitions=number_repetitions,
-                                                     timesteps_between_reps=timesteps_between_reps,
-                                                     new_ip_key=target_property_name,
-                                                     new_ip_value=target_property_value,
-                                                     revert_in_days=revert,
-                                                     ip_restrictions=ip_restrictions,
-                                                     target_residents_only=target_residents_only,
-                                                     target_age_min=target_age_min,
-                                                     target_age_max=target_age_max,
-                                                     target_sex=target_sex,
-                                                     node_ids=node_ids
-                                                   )
+        return change_individual_property_scheduled(camp,
+                                                    start_day=start_day,
+                                                    coverage=coverage,
+                                                    max_duration=max_duration,
+                                                    daily_prob=daily_prob,
+                                                    number_repetitions=number_repetitions,
+                                                    timesteps_between_reps=timesteps_between_reps,
+                                                    new_ip_key=target_property_name,
+                                                    new_ip_value=target_property_value,
+                                                    revert_in_days=revert,
+                                                    ip_restrictions=ip_restrictions,
+                                                    target_residents_only=target_residents_only,
+                                                    target_age_min=target_age_min,
+                                                    target_age_max=target_age_max,
+                                                    target_sex=target_sex,
+                                                    node_ids=node_ids
+                                                    )

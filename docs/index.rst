@@ -26,7 +26,6 @@ disease transmission model.
    :titlesonly:
    :caption: Related documentation
 
-   emodpy Jupyter notebooks <https://docs.idmod.org/projects/jupyter-notebooks-emodpy/en/latest/>
    EMOD generic <https://docs.idmod.org/projects/emod-generic/en/latest/>
    emodpy <https://docs.idmod.org/projects/emodpy/en/latest/>
    idmtools <https://docs.idmod.org/projects/idmtools/en/latest/>

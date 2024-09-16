@@ -7,6 +7,7 @@ import json
 from emod_api.interventions.common import *
 from emod_api.interventions import common, migration
 from emod_api import campaign as camp
+from emod_api.utils import Distributions
 
 from camp_test import CampaignTest, delete_existing_file
 
@@ -114,6 +115,31 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(event['Delay_Period_Exponential'], 5)
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+
+    def test_delayed_intervention_distribution(self):
+        camp_filename = 'delayed_intervention.json'
+        delete_existing_file(camp_filename)
+
+        actual_interventions = [BroadcastEvent(camp, 'GP_EVENT_000')]
+        intervention = DelayedIntervention(camp, Configs=copy.deepcopy(actual_interventions),
+                                           Delay_Dict=Distributions.weibull(23, 22))
+
+        event = self.save_campaignfile_and_load_event(intervention, camp_filename)
+
+        self.assertTrue(event['Actual_IndividualIntervention_Configs'][0].items() <= actual_interventions[0].items())
+        self.assertEqual(event['class'], "DelayedIntervention")
+        self.assertEqual(event['Delay_Period_Distribution'], "WEIBULL_DISTRIBUTION")
+        self.assertEqual(event['Delay_Period_Lambda'], 23)
+        self.assertEqual(event['Delay_Period_Kappa'], 22)
+
+        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+
+    def test_only_use_implicit_if_default(self):
+        coordinator = s2c.get_class_with_defaults("StandardEventCoordinator", camp.schema_path)
+        coordinator.Target_Demographic = "ExplicitAgeRangesAndGender"
+        coordinator.Target_Age_Min = 123
+        self.assertEqual(coordinator["Target_Demographic"], "ExplicitAgeRangesAndGender")
+        self.assertEqual(coordinator["Target_Age_Min"], 123)
 
     @unittest.skip
     def test_delayed_intervention_exception(self):
@@ -228,9 +254,9 @@ class CommonInterventionTest(CampaignTest):
 
         target_property_key = 'Risk'
         target_property_value = 'High'
-        daily_probability=1.0
-        maximum_dur=1.0
-        revert=0
+        daily_probability = 1.0
+        maximum_dur = 1.0
+        revert = 0
         intervention = PropertyValueChanger(camp,
                                             target_property_key,
                                             target_property_value,
@@ -256,7 +282,6 @@ class CommonInterventionTest(CampaignTest):
                                    Nodeset_Config=utils.do_nodes(schema_path, [1, 2]),
                                    Node_Ids=[1, 2],
                                    Intervention_List=[BroadcastEvent(camp)])
-
 
     def test_scheduled_campaign_event_using_Nodeset_Config(self):
         camp_filename = 'scheduled_campaign_event.json'
@@ -287,7 +312,7 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
 
         ic = ecc['Intervention_Config']
-        #self.assertEqual(ic['class'], 'MultiInterventionDistributor')
+        # self.assertEqual(ic['class'], 'MultiInterventionDistributor')
         self.assertTrue(ic.items() <= intervention_list[0].items())
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
@@ -298,24 +323,24 @@ class CommonInterventionTest(CampaignTest):
 
         intervention_list = [BroadcastEvent(camp)]
         intervention = ScheduledCampaignEvent(camp,
-                                            Start_Day=30,
-                                            Node_Ids=[1, 2],
-                                            Number_Repetitions=3,
-                                            Timesteps_Between_Repetitions=10,
-                                            Demographic_Coverage=0.3,
-                                            Intervention_List=copy.deepcopy(intervention_list))
+                                              Start_Day=30,
+                                              Node_Ids=[1, 2],
+                                              Number_Repetitions=3,
+                                              Timesteps_Between_Repetitions=10,
+                                              Demographic_Coverage=0.3,
+                                              Intervention_List=copy.deepcopy(intervention_list))
 
         event = self.save_campaignfile_and_load_event(intervention, camp_filename)
 
         self.assertEqual(event['Start_Day'], 30)
 
         self.assertEqual(event['Nodeset_Config'], {
-                "Node_List": [
-                    1,
-                    2
-                ],
-                "class": "NodeSetNodeList"
-            })
+            "Node_List": [
+                1,
+                2
+            ],
+            "class": "NodeSetNodeList"
+        })
 
         ecc = event['Event_Coordinator_Config']
         self.assertEqual(ecc['Demographic_Coverage'], 0.3)
@@ -323,7 +348,7 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
 
         ic = ecc['Intervention_Config']
-        #self.assertEqual(ic['class'], 'MultiInterventionDistributor')
+        # self.assertEqual(ic['class'], 'MultiInterventionDistributor')
         self.assertTrue(ic.items() <= intervention_list[0].items())
 
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
@@ -350,9 +375,6 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(intervention["Duration_At_Node_Peak_2_Value"], peak_2_value)
         self.assertEqual(intervention["Duration_Before_Leaving_Log_Normal_Mu"], mu)
         self.assertEqual(intervention["Duration_Before_Leaving_Log_Normal_Sigma"], sigma)
-
-
-
 
     def test_ScheduledCampaignEvent_with_migration(self):
         # Property_Restrictions = None,
@@ -399,7 +421,8 @@ class CommonInterventionTest(CampaignTest):
         # Testing a few target age range and sex cases
 
         intervention_list = [BroadcastEvent(camp)]
-        test_files = ["ScheduledCE_MinAge.json", "ScheduledCE_MaxAge.json", "ScheduledCE_Gender.json", "ScheduledCE_Everyone.json"]
+        test_files = ["ScheduledCE_MinAge.json", "ScheduledCE_MaxAge.json", "ScheduledCE_Gender.json",
+                      "ScheduledCE_Everyone.json"]
 
         # Specific target age min
 
@@ -487,12 +510,12 @@ class CommonInterventionTest(CampaignTest):
 
         camp.reset()
         intervention2 = TriggeredCampaignEvent(camp,
-                                              Start_Day=5,
-                                              Event_Name='test_event_name',
-                                              Triggers=['ExitedRelationship'],
-                                              Intervention_List=[BroadcastEvent(camp)],
-                                              Number_Repetitions=6,
-                                              Timesteps_Between_Repetitions=30)
+                                               Start_Day=5,
+                                               Event_Name='test_event_name',
+                                               Triggers=['ExitedRelationship'],
+                                               Intervention_List=[BroadcastEvent(camp)],
+                                               Number_Repetitions=6,
+                                               Timesteps_Between_Repetitions=30)
 
         event2 = self.save_campaignfile_and_load_event(intervention2, "EmptyNodesetTCE.json")
         node_config = event2['Nodeset_Config']
@@ -534,12 +557,12 @@ class CommonInterventionTest(CampaignTest):
 
         self.assertEqual(event['Start_Day'], 5)
         self.assertEqual(event['Nodeset_Config'], {
-                "Node_List": [
-                    3,
-                    4
-                ],
-                "class": "NodeSetNodeList"
-            })
+            "Node_List": [
+                3,
+                4
+            ],
+            "class": "NodeSetNodeList"
+        })
         ecc = event['Event_Coordinator_Config']
         self.assertEqual(ecc['class'], 'StandardInterventionDistributionEventCoordinator')
 
@@ -578,12 +601,12 @@ class CommonInterventionTest(CampaignTest):
 
         self.assertEqual(event['Start_Day'], 5)
         self.assertEqual(event['Nodeset_Config'], {
-                "Node_List": [
-                    3,
-                    4
-                ],
-                "class": "NodeSetNodeList"
-            })
+            "Node_List": [
+                3,
+                4
+            ],
+            "class": "NodeSetNodeList"
+        })
         ecc = event['Event_Coordinator_Config']
         self.assertEqual(ecc['class'], 'StandardInterventionDistributionEventCoordinator')
         # These two parameters are not used in TriggeredCampaignEvent() yet
@@ -603,19 +626,20 @@ class CommonInterventionTest(CampaignTest):
         shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
         # Testing a few cases where age range and sex are specified
-        test_files = ["TriggeredCE_MinAge.json", "TriggeredCE_MaxAge.json", "TriggeredCE_Gender.json", "TriggeredCE_Everyone.json"]
+        test_files = ["TriggeredCE_MinAge.json", "TriggeredCE_MaxAge.json", "TriggeredCE_Gender.json",
+                      "TriggeredCE_Everyone.json"]
         # Specific min age:
         intervention = TriggeredCampaignEvent(camp,
-                                            Start_Day=5,
-                                            Event_Name='test_event_name',
-                                            Node_Ids=[3, 4],
-                                            Triggers=copy.deepcopy(triggers),
-                                            Intervention_List=copy.deepcopy(intervention_list),
-                                            Property_Restrictions=[{'Risk': 'High'}],
-                                            Number_Repetitions=6,
-                                            Timesteps_Between_Repetitions=30,
-                                            Target_Age_Min = 1
-                                            )
+                                              Start_Day=5,
+                                              Event_Name='test_event_name',
+                                              Node_Ids=[3, 4],
+                                              Triggers=copy.deepcopy(triggers),
+                                              Intervention_List=copy.deepcopy(intervention_list),
+                                              Property_Restrictions=[{'Risk': 'High'}],
+                                              Number_Repetitions=6,
+                                              Timesteps_Between_Repetitions=30,
+                                              Target_Age_Min=1
+                                              )
 
         event = self.save_campaignfile_and_load_event(intervention, "TriggeredCE_MinAge.json")
         ecc = event['Event_Coordinator_Config']
@@ -626,16 +650,16 @@ class CommonInterventionTest(CampaignTest):
         # Specific max age
 
         intervention = TriggeredCampaignEvent(camp,
-                                            Start_Day=5,
-                                            Event_Name='test_event_name',
-                                            Node_Ids=[3, 4],
-                                            Triggers=copy.deepcopy(triggers),
-                                            Intervention_List=copy.deepcopy(intervention_list),
-                                            Property_Restrictions=[{'Risk': 'High'}],
-                                            Number_Repetitions=6,
-                                            Timesteps_Between_Repetitions=30,
-                                            Target_Age_Max = 15
-                                            )
+                                              Start_Day=5,
+                                              Event_Name='test_event_name',
+                                              Node_Ids=[3, 4],
+                                              Triggers=copy.deepcopy(triggers),
+                                              Intervention_List=copy.deepcopy(intervention_list),
+                                              Property_Restrictions=[{'Risk': 'High'}],
+                                              Number_Repetitions=6,
+                                              Timesteps_Between_Repetitions=30,
+                                              Target_Age_Max=15
+                                              )
 
         event = self.save_campaignfile_and_load_event(intervention, "TriggeredCE_MaxAge.json")
         ecc = event['Event_Coordinator_Config']
@@ -646,16 +670,16 @@ class CommonInterventionTest(CampaignTest):
         # Specific Gender
 
         intervention = TriggeredCampaignEvent(camp,
-                                            Start_Day=5,
-                                            Event_Name='test_event_name',
-                                            Node_Ids=[3, 4],
-                                            Triggers=copy.deepcopy(triggers),
-                                            Intervention_List=copy.deepcopy(intervention_list),
-                                            Property_Restrictions=[{'Risk': 'High'}],
-                                            Number_Repetitions=6,
-                                            Timesteps_Between_Repetitions=30,
-                                            Target_Gender="Male"
-                                            )
+                                              Start_Day=5,
+                                              Event_Name='test_event_name',
+                                              Node_Ids=[3, 4],
+                                              Triggers=copy.deepcopy(triggers),
+                                              Intervention_List=copy.deepcopy(intervention_list),
+                                              Property_Restrictions=[{'Risk': 'High'}],
+                                              Number_Repetitions=6,
+                                              Timesteps_Between_Repetitions=30,
+                                              Target_Gender="Male"
+                                              )
 
         event = self.save_campaignfile_and_load_event(intervention, "TriggeredCE_Gender.json")
         ecc = event['Event_Coordinator_Config']
@@ -666,17 +690,17 @@ class CommonInterventionTest(CampaignTest):
         # Everyone
 
         intervention = TriggeredCampaignEvent(camp,
-                                            Start_Day=5,
-                                            Event_Name='test_event_name',
-                                            Node_Ids=[3, 4],
-                                            Triggers=copy.deepcopy(triggers),
-                                            Intervention_List=copy.deepcopy(intervention_list),
-                                            Property_Restrictions=[{'Risk': 'High'}],
-                                            Number_Repetitions=6,
-                                            Timesteps_Between_Repetitions=30,
-                                            Target_Gender="All",
-                                            Target_Age_Min=0
-                                            )
+                                              Start_Day=5,
+                                              Event_Name='test_event_name',
+                                              Node_Ids=[3, 4],
+                                              Triggers=copy.deepcopy(triggers),
+                                              Intervention_List=copy.deepcopy(intervention_list),
+                                              Property_Restrictions=[{'Risk': 'High'}],
+                                              Number_Repetitions=6,
+                                              Timesteps_Between_Repetitions=30,
+                                              Target_Gender="All",
+                                              Target_Age_Min=0
+                                              )
 
         event = self.save_campaignfile_and_load_event(intervention, "TriggeredCE_Everyone.json")
         ecc = event['Event_Coordinator_Config']
@@ -703,7 +727,7 @@ class CommonInterventionTest(CampaignTest):
         if self.__class__ == CommonInterventionTest:
             self.assertEqual(ic["Blackout_Event_Trigger"], "NoTrigger")  # default for Generic, see schema
         elif self.__class__ == CommonInterventionTestMalaria:
-            self.assertEqual(ic["Blackout_Event_Trigger"], "")      # default for Malaria, see schema
+            self.assertEqual(ic["Blackout_Event_Trigger"], "")  # default for Malaria, see schema
         self.assertEqual(ic["Blackout_On_First_Occurrence"], 0)
         self.assertEqual(ic["Blackout_Period"], 0)
 
@@ -753,8 +777,8 @@ class CommonInterventionTest(CampaignTest):
 
     def test_triggered_campaign_event_delay(self):
         """
-        StandardEventCoordinator --> NLHTI --> MultiInterventionDistrib --> List_Of_ DelayedInterventions --> List_Of ... Actual Interventions.
-        Returns:
+        StandardEventCoordinator --> NLHTI --> MultiInterventionDistrib --> List_Of_ DelayedInterventions --> List_Of
+        ... Actual Interventions. Returns:
 
         """
         camp_filename = 'triggered_campaign_event_delay.json'
@@ -762,23 +786,24 @@ class CommonInterventionTest(CampaignTest):
         triggers = ['GP_EVENT_002', 'GP_EVENT_003']
 
         intervention_list = [BroadcastEvent(camp)]
+        delay = 10
         intervention = TriggeredCampaignEvent(camp,
                                               Start_Day=50,
                                               Event_Name='test_event_name',
                                               Node_Ids=[3],
                                               Triggers=triggers,
                                               Intervention_List=copy.deepcopy(intervention_list),
-                                              Delay=10)
+                                              Delay=Distributions.exponential(delay))
 
         event = self.save_campaignfile_and_load_event(intervention, camp_filename)
 
         self.assertEqual(event['Start_Day'], 50)
         self.assertEqual(event['Nodeset_Config'], {
-                "Node_List": [
-                    3
-                ],
-                "class": "NodeSetNodeList"
-            })
+            "Node_List": [
+                3
+            ],
+            "class": "NodeSetNodeList"
+        })
         ecc = event['Event_Coordinator_Config']
         self.assertEqual(ecc['class'], 'StandardInterventionDistributionEventCoordinator')
         # These two parameters are not used in TriggeredCampaignEvent() yet
@@ -789,6 +814,56 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ic['class'], 'NodeLevelHealthTriggeredIV')
         ac = ic['Actual_IndividualIntervention_Config']
         self.assertEqual(ac['class'], 'DelayedIntervention')
+        self.assertEqual(ac['Delay_Period_Exponential'], delay)
+        self.assertEqual(ac['Delay_Period_Distribution'], 'EXPONENTIAL_DISTRIBUTION')
+        delayed_ac = ac['Actual_IndividualIntervention_Configs'][0]
+        self.assertTrue(delayed_ac.items() <=
+                        intervention_list[0].items())
+        self.assertEqual(delayed_ac['class'], 'BroadcastEvent')
+
+        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
+
+    def test_triggered_campaign_event_delay2(self):
+        """
+        StandardEventCoordinator --> NLHTI --> MultiInterventionDistrib --> List_Of_ DelayedInterventions --> List_Of
+        ... Actual Interventions. Returns:
+
+        """
+        camp_filename = 'triggered_campaign_event_delay.json'
+        delete_existing_file(camp_filename)
+        triggers = ['GP_EVENT_002', 'GP_EVENT_003']
+
+        intervention_list = [BroadcastEvent(camp)]
+        delay = 10
+        intervention = TriggeredCampaignEvent(camp,
+                                              Start_Day=50,
+                                              Event_Name='test_event_name',
+                                              Node_Ids=[3],
+                                              Triggers=triggers,
+                                              Intervention_List=copy.deepcopy(intervention_list),
+                                              Delay=delay)
+
+        event = self.save_campaignfile_and_load_event(intervention, camp_filename)
+
+        self.assertEqual(event['Start_Day'], 50)
+        self.assertEqual(event['Nodeset_Config'], {
+            "Node_List": [
+                3
+            ],
+            "class": "NodeSetNodeList"
+        })
+        ecc = event['Event_Coordinator_Config']
+        self.assertEqual(ecc['class'], 'StandardInterventionDistributionEventCoordinator')
+        # These two parameters are not used in TriggeredCampaignEvent() yet
+        # self.assertEqual(ecc['Number_Repetitions'], 6)
+        # self.assertEqual(ecc['Timesteps_Between_Repetitions'], 30)
+
+        ic = ecc['Intervention_Config']
+        self.assertEqual(ic['class'], 'NodeLevelHealthTriggeredIV')
+        ac = ic['Actual_IndividualIntervention_Config']
+        self.assertEqual(ac['class'], 'DelayedIntervention')
+        self.assertEqual(ac['Delay_Period_Distribution'], "CONSTANT_DISTRIBUTION")
+        self.assertEqual(ac['Delay_Period_Constant'], delay)
         delayed_ac = ac['Actual_IndividualIntervention_Configs'][0]
         self.assertTrue(delayed_ac.items() <=
                         intervention_list[0].items())
@@ -802,12 +877,12 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(standard_diagnostic.Base_Specificity, 1)
         self.assertEqual(standard_diagnostic.Days_To_Diagnosis, 0)
         self.assertEqual(standard_diagnostic.Treatment_Fraction, 1)
-        #self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
+        # self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
         self.assertTrue(standard_diagnostic.Intervention_Name == "SimpleDiagnostic" or
                         standard_diagnostic.Intervention_Name == "StandardDiagnostic")
-
-        self.assertTrue(standard_diagnostic.Positive_Diagnosis_Config.Broadcast_Event == "GP_EVENT_005" or 
-                        standard_diagnostic.Positive_Diagnosis_Config.Broadcast_Event == "PositiveResult" ) # GP_EVENT_004 for Malaria, PositiveResult elsewhere
+        # GP_EVENT_004 for Malaria, PositiveResult elsewhere
+        self.assertTrue(standard_diagnostic.Positive_Diagnosis_Config.Broadcast_Event == "GP_EVENT_005" or
+                        standard_diagnostic.Positive_Diagnosis_Config.Broadcast_Event == "PositiveResult")
 
         if standard_diagnostic.Intervention_Name == "SimpleDiagnostic":
             self.assertEqual(standard_diagnostic.Event_Trigger_Distributed, "NoTrigger")
@@ -821,7 +896,7 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(standard_diagnostic.Base_Specificity, 1)
         self.assertEqual(standard_diagnostic.Days_To_Diagnosis, 0)
         self.assertEqual(standard_diagnostic.Treatment_Fraction, 1)
-        #self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
+        # self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
         self.assertTrue(standard_diagnostic.Intervention_Name == "SimpleDiagnostic" or
                         standard_diagnostic.Intervention_Name == "StandardDiagnostic")
 
@@ -849,18 +924,19 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(standard_diagnostic.Event_Or_Config, "Config")
         self.assertTrue(standard_diagnostic.Intervention_Name == "SimpleDiagnostic" or
                         standard_diagnostic.Intervention_Name == "StandardDiagnostic")
-        self.assertEqual(standard_diagnostic.Positive_Diagnosis_Config.Event_Coordinator_Config["class"], "StandardInterventionDistributionEventCoordinator")
+        self.assertEqual(standard_diagnostic.Positive_Diagnosis_Config.Event_Coordinator_Config["class"],
+                         "StandardInterventionDistributionEventCoordinator")
 
     def test_campaign_delay_event(self):
         camp_filename = 'triggered_campaign_delay_event.json'
         delete_existing_file(camp_filename)
-        
+
         start_day = 3
         trigger = 'NewInfection'
         broadcast_event = 'Blackout'
         intervention_list = [BroadcastEvent(camp, Event_Trigger=broadcast_event)]
         delay = {"Delay_Period_Exponential": 5}
-        delay_intervention = triggered_campaign_delay_event(camp, start_day=start_day, trigger=trigger, 
+        delay_intervention = triggered_campaign_delay_event(camp, start_day=start_day, trigger=trigger,
                                                             delay=delay, intervention=intervention_list)
         event = self.save_campaignfile_and_load_event(delay_intervention, camp_filename)
         self.assertEqual(event['Start_Day'], start_day)
@@ -871,7 +947,9 @@ class CommonInterventionTest(CampaignTest):
         ac = ecc['Intervention_Config']['Actual_IndividualIntervention_Config']
         self.assertEqual(ecc['Intervention_Config']['Trigger_Condition_List'], [trigger])
         self.assertEqual(ac['class'], 'DelayedIntervention')
-        
+        self.assertEqual(ac['Delay_Period_Exponential'], 5)
+        self.assertEqual(ac['Delay_Period_Distribution'], 'EXPONENTIAL_DISTRIBUTION')
+
         delayed_ac = ac['Actual_IndividualIntervention_Configs'][0][0]
         self.assertTrue(delayed_ac.items() <= intervention_list[0].items())
         self.assertEqual(delayed_ac['class'], 'BroadcastEvent')
@@ -890,18 +968,18 @@ class CommonInterventionTest(CampaignTest):
 
         triggers = ['ExitedRelationship', 'EnteredRelationship']
 
-        intervention = BroadcastEvent(camp, Event_Trigger = "ExitedRelationship")
-        intervention_list = [BroadcastEvent(camp, Event_Trigger = "EnteredRelationship")]
-        
+        intervention = BroadcastEvent(camp, Event_Trigger="ExitedRelationship")
+        intervention_list = [BroadcastEvent(camp, Event_Trigger="EnteredRelationship")]
+
         intervention2 = NLHTI(camp,
-                             Triggers=triggers,
-                             Interventions=intervention_list,
-                             Demographic_Coverage=0.6,
-                             Target_Age_Min=10,
-                             Target_Age_Max=50,
-                             Target_Gender="Female",
-                             Target_Residents_Only=1,
-                             Duration=20)
+                              Triggers=triggers,
+                              Interventions=intervention_list,
+                              Demographic_Coverage=0.6,
+                              Target_Age_Min=10,
+                              Target_Age_Max=50,
+                              Target_Gender="Female",
+                              Target_Residents_Only=1,
+                              Duration=20)
         # Publishing exited/entered relationship
         camp.add(intervention)
 
@@ -915,7 +993,7 @@ class CommonInterventionTest(CampaignTest):
         with open(camp_filename, 'r') as file:
             camp_event = json.load(file)['Events']
         self.assertEqual(len(camp_event), 2)
-        
+
         self.assertEqual(camp.pubsub_signals_pubbing, ["ExitedRelationship", "EnteredRelationship"])
         self.assertEqual(camp.pubsub_signals_subbing, triggers)
         os.remove(camp_filename)
@@ -932,14 +1010,13 @@ class CommonInterventionTest(CampaignTest):
         target_age_min = 5
         target_gender = "Male"
 
-
         intervention_list = [BroadcastEvent(camp)]
 
-        camp.add(event=ScheduledCampaignEvent(camp, 1, [1, 3, 5], 
-                 Target_Age_Min=target_age_min, 
-                 Target_Age_Max=target_age_max, 
-                 Target_Gender = target_gender, 
-                 Intervention_List=intervention_list), 
+        camp.add(event=ScheduledCampaignEvent(camp, 1, [1, 3, 5],
+                                              Target_Age_Min=target_age_min,
+                                              Target_Age_Max=target_age_max,
+                                              Target_Gender=target_gender,
+                                              Intervention_List=intervention_list),
                  first=True)
 
         campaign = save_file(camp)
@@ -965,9 +1042,9 @@ class CommonInterventionTest(CampaignTest):
             camp.set_schema("data/config/input_malaria_schema.json")
             self.assertEqual(len(campaign['Events']), 0)
 
-            self.assertEqual(camp.schema_path, "data/config/input_malaria_schema.json") # will only fail on generic run
+            self.assertEqual(camp.schema_path, "data/config/input_malaria_schema.json")  # will only fail on generic run
             camp.schema_path = "data/config/input_generic_schema.json"
-        
+
         os.remove("reset_camp.json")
 
     def test_trigger_format(self):
@@ -980,7 +1057,7 @@ class CommonInterventionTest(CampaignTest):
         common.old_adhoc_trigger_style = True
 
         def check_value_error_raised():
-            intervention = BroadcastEvent(camp, Event_Trigger = "Shazam")
+            intervention = BroadcastEvent(camp, Event_Trigger="Shazam")
             self.assertIn("Shazam", camp.get_adhocs())
 
         with self.assertRaises(ValueError) as context:
@@ -992,37 +1069,36 @@ class CommonInterventionTest(CampaignTest):
             common.old_adhoc_trigger_style = style
 
             intervention = TriggeredCampaignEvent(camp,
-                                                    Start_Day=50,
-                                                    Event_Name='test_event_name',
-                                                    Triggers=triggers,
-                                                    Node_Ids=[3],
-                                                    Intervention_List=[BroadcastEvent(camp, Event_Trigger = "ReceivedTreatment")],
-                                                    Delay=10)
+                                                  Start_Day=50,
+                                                  Event_Name='test_event_name',
+                                                  Triggers=triggers,
+                                                  Node_Ids=[3],
+                                                  Intervention_List=[
+                                                      BroadcastEvent(camp, Event_Trigger="ReceivedTreatment")],
+                                                  Delay=10)
 
             camp.add(intervention)
 
-            if not style:                
+            if not style:
                 intervention2 = ScheduledCampaignEvent(camp,
-                                                Start_Day=30,
-                                                Node_Ids=[1, 2],
-                                                Number_Repetitions=3,
-                                                Timesteps_Between_Repetitions=10,
-                                                Demographic_Coverage=0.3,
-                                                Intervention_List=[BroadcastEvent(camp, Event_Trigger = "ReceivedTreatment")])
+                                                       Start_Day=30,
+                                                       Node_Ids=[1, 2],
+                                                       Number_Repetitions=3,
+                                                       Timesteps_Between_Repetitions=10,
+                                                       Demographic_Coverage=0.3,
+                                                       Intervention_List=[
+                                                           BroadcastEvent(camp, Event_Trigger="ReceivedTreatment")])
 
                 camp.add(intervention2)
-
 
             camp.save(camp_filename)
 
             with open(camp_filename, 'r') as file:
                 camp_event = json.load(file)['Events']
 
-
             event1 = camp_event[0]
             ic1 = event1['Event_Coordinator_Config']['Intervention_Config']
 
-            
             if style:
                 self.assertEqual(ic1['Trigger_Condition_List'], triggers)
             else:
@@ -1030,7 +1106,6 @@ class CommonInterventionTest(CampaignTest):
                 broadcast_event = event2['Event_Coordinator_Config']['Intervention_Config']['Broadcast_Event']
                 self.assertEqual(ic1['Trigger_Condition_List'], triggers)
                 self.assertEqual(broadcast_event, "ReceivedTreatment")
-
 
         common.old_adhoc_trigger_style = False
         camp.reset()
@@ -1040,7 +1115,7 @@ class CommonInterventionTest(CampaignTest):
         start_day = 4
         triggers = ['GP_EVENT_000', 'GP_EVENT_001']
         iv_list = [BroadcastEvent(camp)]
-        delay={"Delay_Period_Exponential": 5}
+        delay = {"Delay_Period_Exponential": 5}
         duration = 10
         ip_target = {'Risk': 'High'}
         coverage = 0.8
@@ -1053,26 +1128,37 @@ class CommonInterventionTest(CampaignTest):
         for delay in [{"Delay_Period_Exponential": 5}, False]:
             print(delay)
             if delay:
-                event = common.triggered_campaign_event_with_optional_delay(camp, start_day, triggers, iv_list, delay, duration, ip_target,
-                                                                        coverage, target_age_min, target_age_max, target_sex, target_residents_only,
-                                                                        blackout)
+                event = common.triggered_campaign_event_with_optional_delay(camp, start_day, triggers, iv_list, delay,
+                                                                            duration, ip_target,
+                                                                            coverage, target_age_min, target_age_max,
+                                                                            target_sex, target_residents_only,
+                                                                            blackout)
             else:
-                event = common.triggered_campaign_event_with_optional_delay(camp, start_day=start_day, triggers=triggers, intervention=iv_list, duration=duration, 
-                                                                        ip_targeting=ip_target, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max, 
-                                                                        target_sex=target_sex, target_residents_only=target_residents_only, blackout=blackout)
+                event = common.triggered_campaign_event_with_optional_delay(camp, start_day=start_day,
+                                                                            triggers=triggers, intervention=iv_list,
+                                                                            duration=duration,
+                                                                            ip_targeting=ip_target, coverage=coverage,
+                                                                            target_age_min=target_age_min,
+                                                                            target_age_max=target_age_max,
+                                                                            target_sex=target_sex,
+                                                                            target_residents_only=target_residents_only,
+                                                                            blackout=blackout)
 
             camp.add(event)
             camp.save(camp_filename)
             with open(camp_filename, 'r') as file:
                 camp_event = json.load(file)['Events'][0]
-            
+
             self.assertEqual(event['Start_Day'], start_day)
             ic = event["Event_Coordinator_Config"]["Intervention_Config"]
             self.assertEqual(ic["Demographic_Coverage"], coverage)
             self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
-                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Actual_IndividualIntervention_Configs"][0][0]["class"], "BroadcastEvent")
-                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"], "EXPONENTIAL_DISTRIBUTION")
+                self.assertEqual(
+                    ic["Actual_IndividualIntervention_Config"]["Actual_IndividualIntervention_Configs"][0][0]["class"],
+                    "BroadcastEvent")
+                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"],
+                                 "EXPONENTIAL_DISTRIBUTION")
                 self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Exponential"], 5)
 
             else:
@@ -1083,51 +1169,54 @@ class CommonInterventionTest(CampaignTest):
             self.assertEqual(ic["Target_Age_Min"], target_age_min)
             self.assertEqual(ic["Target_Gender"], target_sex)
             self.assertEqual(ic["Target_Residents_Only"], target_residents_only)
-        os.remove(camp_filename) # comment out to save camp file
-    
+        os.remove(camp_filename)  # comment out to save camp file
+
     def test_property_restrictions(self):
         camp_filename = 'prop_restrictions.json'
         delete_existing_file(camp_filename)
 
         intervention_list = [BroadcastEvent(camp)]
         # Ensuring that the property restrictions are properly formatted
-        
+
         properties = [
-                {'Risk': 'High'},
-                "Risk:High",
-                {"Thing": "High", "Thing2": "Low" },
-                [  { "Thing": "High"}, { "Thing2": "Low"} ],
-                "Risk=High",
-                ["Risk=High"],
-                ["Risk:High"],
-                ["Thing:High", "Thing2:Low"],
-                ""]
+            {'Risk': 'High'},
+            "Risk:High",
+            {"Thing": "High", "Thing2": "Low"},
+            [{"Thing": "High"}, {"Thing2": "Low"}],
+            "Risk=High",
+            ["Risk=High"],
+            ["Risk:High"],
+            ["Thing:High", "Thing2:Low"],
+            ""]
         triggers = ['GP_EVENT_000', 'GP_EVENT_001']
-        
+
         for index, prop in enumerate(properties):
             camp.reset()
             intervention_list = [BroadcastEvent(camp)]
             intervention = NLHTI(camp,
-                             Triggers=copy.deepcopy(triggers),
-                             Interventions=copy.deepcopy(intervention_list),
-                             Property_Restrictions=prop,
-                             Demographic_Coverage=0.6,
-                             Target_Age_Min=10,
-                             Target_Age_Max=50,
-                             Target_Gender="Female",
-                             Target_Residents_Only=1,
-                             Duration=20)
+                                 Triggers=copy.deepcopy(triggers),
+                                 Interventions=copy.deepcopy(intervention_list),
+                                 Property_Restrictions=prop,
+                                 Demographic_Coverage=0.6,
+                                 Target_Age_Min=10,
+                                 Target_Age_Max=50,
+                                 Target_Gender="Female",
+                                 Target_Residents_Only=1,
+                                 Duration=20)
             event = self.save_campaignfile_and_load_event(intervention, camp_filename)
 
-            
             if index < 2 or index in [4, 5, 6]:
-                self.assertEqual(event['Property_Restrictions'], ['Risk:High'],  msg=f"{prop} is being formatted as {event['Property_Restrictions']} and {index}")
+                self.assertEqual(event['Property_Restrictions'], ['Risk:High'],
+                                 msg=f"{prop} is being formatted as {event['Property_Restrictions']} and {index}")
             elif index in [2, 7]:
-                self.assertEqual(event['Property_Restrictions'], ['Thing:High','Thing2:Low'],  msg=f"{prop} is being formatted as {event['Property_Restrictions']}")
+                self.assertEqual(event['Property_Restrictions'], ['Thing:High', 'Thing2:Low'],
+                                 msg=f"{prop} is being formatted as {event['Property_Restrictions']}")
             elif index == 3:
-                self.assertEqual(event['Property_Restrictions_Within_Node'], [{'Thing':'High'},{'Thing2':'Low'}],  msg=f"{prop} is being formatted as {event['Property_Restrictions_Within_Node']}")
+                self.assertEqual(event['Property_Restrictions_Within_Node'], [{'Thing': 'High'}, {'Thing2': 'Low'}],
+                                 msg=f"{prop} is being formatted as {event['Property_Restrictions_Within_Node']}")
             else:
-                self.assertEqual(len(event['Property_Restrictions']), 0,  msg=f"{prop} is being formatted as {event['Property_Restrictions']}")
+                self.assertEqual(len(event['Property_Restrictions']), 0,
+                                 msg=f"{prop} is being formatted as {event['Property_Restrictions']}")
 
         os.remove(camp_filename)
 
@@ -1137,9 +1226,9 @@ class CommonInterventionTest(CampaignTest):
 
         target_property_key = 'Risk'
         target_property_value = 'High'
-        daily_probability=1.0
-        maximum_dur=1.0
-        revert=0
+        daily_probability = 1.0
+        maximum_dur = 1.0
+        revert = 0
         intervention = PropertyValueChanger(camp,
                                             target_property_key,
                                             target_property_value,
@@ -1167,7 +1256,11 @@ class CommonInterventionTest(CampaignTest):
         ip_targeting_key = "Risk"
         ip_targeting_value = "High"
 
-        intervention = change_individual_property_at_age(camp, new_ip_key=new_ip_key, new_ip_value=new_ip_value, change_age_in_days=change_age_in_days, revert_in_days=revert_in_days, ip_targeting_key=ip_targeting_key, ip_targeting_value=ip_targeting_value)
+        intervention = change_individual_property_at_age(camp, new_ip_key=new_ip_key, new_ip_value=new_ip_value,
+                                                         change_age_in_days=change_age_in_days,
+                                                         revert_in_days=revert_in_days,
+                                                         ip_targeting_key=ip_targeting_key,
+                                                         ip_targeting_value=ip_targeting_value)
         event = self.save_campaignfile_and_load_event(intervention, camp_filename)
 
         ec = event['Event_Coordinator_Config']
@@ -1179,13 +1272,12 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ai_config["Target_Property_Value"], new_ip_value)
         self.assertEqual(ai_config["New_Property_Value"], "")
 
-
         self.assertEqual(ic["Property_Restrictions"], [f"{ip_targeting_key}:{ip_targeting_value}"])
         self.assertEqual(ai_config["Maximum_Duration"], 1)
         self.assertEqual(ai_config["Revert"], revert_in_days)
         self.assertEqual(ai_config["class"], "PropertyValueChanger")
-        
-        self.assertEqual(aic["Delay_Period_Distribution"], "CONSTANT_DISTRIBUTION")        
+
+        self.assertEqual(aic["Delay_Period_Distribution"], "CONSTANT_DISTRIBUTION")
         self.assertEqual(aic["Delay_Period_Constant"], change_age_in_days)
         self.assertEqual(aic["class"], "DelayedIntervention")
 
@@ -1199,7 +1291,7 @@ class CommonInterventionTest(CampaignTest):
         start_day = 10
         number_repetitions = 2
         timesteps_between_reps = 3
-        node_ids = [1,2]
+        node_ids = [1, 2]
         daily_prob = 0.8
         max_duration = 10
         revert_in_days = 20
@@ -1211,11 +1303,15 @@ class CommonInterventionTest(CampaignTest):
         target_residents_only = True
 
         camp.reset()
-        change_individual_property_scheduled(camp, new_ip_key=new_ip_key, new_ip_value=new_ip_value, start_day=start_day, number_repetitions=number_repetitions,
-                                                            timesteps_between_reps=timesteps_between_reps, node_ids=node_ids, daily_prob=daily_prob, max_duration=max_duration,
-                                                            revert_in_days=revert_in_days, ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min,
-                                                            target_age_max=target_age_max, target_sex=target_sex, target_residents_only=target_residents_only)
-        
+        change_individual_property_scheduled(camp, new_ip_key=new_ip_key, new_ip_value=new_ip_value,
+                                             start_day=start_day, number_repetitions=number_repetitions,
+                                             timesteps_between_reps=timesteps_between_reps, node_ids=node_ids,
+                                             daily_prob=daily_prob, max_duration=max_duration,
+                                             revert_in_days=revert_in_days, ip_restrictions=ip_restrictions,
+                                             coverage=coverage, target_age_min=target_age_min,
+                                             target_age_max=target_age_max, target_sex=target_sex,
+                                             target_residents_only=target_residents_only)
+
         camp.save(camp_filename)
         with open(camp_filename, 'r') as file:
             camp_event = json.load(file)['Events'][0]
@@ -1240,12 +1336,12 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ec["Target_Residents_Only"], target_residents_only)
         self.assertEqual(ec["Timesteps_Between_Repetitions"], timesteps_between_reps)
         self.assertEqual(camp_event['Nodeset_Config'], {
-                "Node_List": [
-                    1,
-                    2
-                ],
-                "class": "NodeSetNodeList"
-            })  
+            "Node_List": [
+                1,
+                2
+            ],
+            "class": "NodeSetNodeList"
+        })
 
     def test_change_individual_property_triggered(self):
         camp_filename = 'change_prop_scheduled.json'
@@ -1253,7 +1349,7 @@ class CommonInterventionTest(CampaignTest):
         new_ip_key = "Risk"
         new_ip_value = "High"
         start_day = 10
-        node_ids = [1,2]
+        node_ids = [1, 2]
         daily_prob = 0.8
         max_duration = 10
         revert_in_days = 20
@@ -1263,31 +1359,42 @@ class CommonInterventionTest(CampaignTest):
         target_age_max = 30
         target_sex = "Male"
         target_residents_only = True
-        delay=2
-        listening_duration=5
-        blackout=False
+        delay = 2
+        listening_duration = 5
+        blackout = False
         check_at_trigger = True
         triggers = ['GP_EVENT_000', 'GP_EVENT_001']
 
         for delay in [{"Delay_Period_Exponential": 5}, False]:
             camp.reset()
             if delay:
-                common.change_individual_property_triggered(camp, triggers=triggers, new_ip_key=new_ip_key, new_ip_value=new_ip_value, start_day=start_day,
-                                                            daily_prob=daily_prob, max_duration=max_duration,  revert_in_days= revert_in_days, node_ids=node_ids,
-                                                            ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
-                                                            target_sex=target_sex, target_residents_only=target_residents_only, delay=delay, listening_duration=listening_duration,
+                common.change_individual_property_triggered(camp, triggers=triggers, new_ip_key=new_ip_key,
+                                                            new_ip_value=new_ip_value, start_day=start_day,
+                                                            daily_prob=daily_prob, max_duration=max_duration,
+                                                            revert_in_days=revert_in_days, node_ids=node_ids,
+                                                            ip_restrictions=ip_restrictions, coverage=coverage,
+                                                            target_age_min=target_age_min,
+                                                            target_age_max=target_age_max,
+                                                            target_sex=target_sex,
+                                                            target_residents_only=target_residents_only, delay=delay,
+                                                            listening_duration=listening_duration,
                                                             blackout=blackout, check_at_trigger=check_at_trigger)
             else:
-                common.change_individual_property_triggered(camp, triggers=triggers, new_ip_key=new_ip_key, new_ip_value=new_ip_value, start_day=start_day,
-                                                            daily_prob=daily_prob, max_duration=max_duration,  revert_in_days= revert_in_days, node_ids=node_ids,
-                                                            ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
-                                                            target_sex=target_sex, target_residents_only=target_residents_only, listening_duration=listening_duration,
+                common.change_individual_property_triggered(camp, triggers=triggers, new_ip_key=new_ip_key,
+                                                            new_ip_value=new_ip_value, start_day=start_day,
+                                                            daily_prob=daily_prob, max_duration=max_duration,
+                                                            revert_in_days=revert_in_days, node_ids=node_ids,
+                                                            ip_restrictions=ip_restrictions, coverage=coverage,
+                                                            target_age_min=target_age_min,
+                                                            target_age_max=target_age_max,
+                                                            target_sex=target_sex,
+                                                            target_residents_only=target_residents_only,
+                                                            listening_duration=listening_duration,
                                                             blackout=blackout, check_at_trigger=check_at_trigger)
 
             camp.save(camp_filename)
             with open(camp_filename, 'r') as file:
                 event = json.load(file)['Events'][0]
-
 
             self.assertEqual(event['Start_Day'], start_day)
             ic = event["Event_Coordinator_Config"]["Intervention_Config"]
@@ -1299,7 +1406,8 @@ class CommonInterventionTest(CampaignTest):
             self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
                 self.assertEqual(intervention["class"], "PropertyValueChanger")
-                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"], "EXPONENTIAL_DISTRIBUTION")
+                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"],
+                                 "EXPONENTIAL_DISTRIBUTION")
                 self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Exponential"], 5)
 
             else:
@@ -1321,14 +1429,14 @@ class CommonInterventionTest(CampaignTest):
 
     def test_change_individual_property(self):
         # test that this works with triggered events
-        number_repetitions=3
-        timesteps_between_repetitions=10
+        number_repetitions = 3
+        timesteps_between_repetitions = 10
         camp_filename = 'change_prop_scheduled.json'
         delete_existing_file(camp_filename)
         new_ip_key = "Risk"
         new_ip_value = "High"
         start_day = 10
-        node_ids = [1,2]
+        node_ids = [1, 2]
         daily_prob = 0.8
         max_duration = 10
         revert_in_days = 20
@@ -1338,29 +1446,40 @@ class CommonInterventionTest(CampaignTest):
         target_age_max = 30
         target_sex = "Male"
         target_residents_only = True
-        delay=2
-        listening_duration=5
-        blackout=False
+        delay = 2
+        listening_duration = 5
+        blackout = False
         check_at_trigger = True
         triggers = ['GP_EVENT_000', 'GP_EVENT_001']
 
         for delay in [{"Delay_Period_Exponential": 5}, False]:
             camp.reset()
             if delay:
-                common.change_individual_property(camp, trigger_condition_list=triggers, target_property_name=new_ip_key, target_property_value=new_ip_value, revert=revert_in_days,
-                                                            start_day=start_day, ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
-                                                            target_sex=target_sex, target_residents_only=target_residents_only, triggered_campaign_delay=delay, listening_duration=listening_duration,
-                                                            blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger, max_duration=max_duration, daily_prob=daily_prob)
+                common.change_individual_property(camp, trigger_condition_list=triggers,
+                                                  target_property_name=new_ip_key, target_property_value=new_ip_value,
+                                                  revert=revert_in_days,
+                                                  start_day=start_day, ip_restrictions=ip_restrictions,
+                                                  coverage=coverage, target_age_min=target_age_min,
+                                                  target_age_max=target_age_max,
+                                                  target_sex=target_sex, target_residents_only=target_residents_only,
+                                                  triggered_campaign_delay=delay, listening_duration=listening_duration,
+                                                  blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger,
+                                                  max_duration=max_duration, daily_prob=daily_prob)
             else:
-                common.change_individual_property(camp, trigger_condition_list=triggers, target_property_name=new_ip_key, target_property_value=new_ip_value, revert=revert_in_days,
-                                                            start_day=start_day, ip_restrictions=ip_restrictions, coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
-                                                            target_sex=target_sex, target_residents_only=target_residents_only, listening_duration=listening_duration,
-                                                            blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger, max_duration=max_duration, daily_prob=daily_prob)
+                common.change_individual_property(camp, trigger_condition_list=triggers,
+                                                  target_property_name=new_ip_key, target_property_value=new_ip_value,
+                                                  revert=revert_in_days,
+                                                  start_day=start_day, ip_restrictions=ip_restrictions,
+                                                  coverage=coverage, target_age_min=target_age_min,
+                                                  target_age_max=target_age_max,
+                                                  target_sex=target_sex, target_residents_only=target_residents_only,
+                                                  listening_duration=listening_duration,
+                                                  blackout_flag=blackout, check_eligibility_at_trigger=check_at_trigger,
+                                                  max_duration=max_duration, daily_prob=daily_prob)
 
             camp.save(camp_filename)
             with open(camp_filename, 'r') as file:
                 event = json.load(file)['Events'][0]
-
 
             self.assertEqual(event['Start_Day'], start_day)
             ic = event["Event_Coordinator_Config"]["Intervention_Config"]
@@ -1372,7 +1491,8 @@ class CommonInterventionTest(CampaignTest):
             self.assertEqual(ic["Trigger_Condition_List"], triggers)
             if delay:
                 self.assertEqual(intervention["class"], "PropertyValueChanger")
-                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"], "EXPONENTIAL_DISTRIBUTION")
+                self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Distribution"],
+                                 "EXPONENTIAL_DISTRIBUTION")
                 self.assertEqual(ic["Actual_IndividualIntervention_Config"]["Delay_Period_Exponential"], 5)
 
             else:
@@ -1393,11 +1513,15 @@ class CommonInterventionTest(CampaignTest):
 
         # testing that it can produce scheduled intervention
         camp.reset()
-        change_individual_property(camp, target_property_name=new_ip_key, target_property_value=new_ip_value, start_day=start_day, 
-                                                            node_ids=node_ids, daily_prob=daily_prob, max_duration=max_duration, number_repetitions=number_repetitions,
-                                                            timesteps_between_reps=timesteps_between_repetitions, revert=revert_in_days, ip_restrictions=ip_restrictions, 
-                                                            coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max, target_sex=target_sex, target_residents_only=target_residents_only)
-        
+        change_individual_property(camp, target_property_name=new_ip_key, target_property_value=new_ip_value,
+                                   start_day=start_day,
+                                   node_ids=node_ids, daily_prob=daily_prob, max_duration=max_duration,
+                                   number_repetitions=number_repetitions,
+                                   timesteps_between_reps=timesteps_between_repetitions, revert=revert_in_days,
+                                   ip_restrictions=ip_restrictions,
+                                   coverage=coverage, target_age_min=target_age_min, target_age_max=target_age_max,
+                                   target_sex=target_sex, target_residents_only=target_residents_only)
+
         camp.save(camp_filename)
         with open(camp_filename, 'r') as file:
             camp_event = json.load(file)['Events'][0]
@@ -1422,12 +1546,13 @@ class CommonInterventionTest(CampaignTest):
         self.assertEqual(ec["Target_Residents_Only"], target_residents_only)
         self.assertEqual(ec["Timesteps_Between_Repetitions"], timesteps_between_repetitions)
         self.assertEqual(camp_event['Nodeset_Config'], {
-                "Node_List": [
-                    1,
-                    2
-                ],
-                "class": "NodeSetNodeList"
-            })  
+            "Node_List": [
+                1,
+                2
+            ],
+            "class": "NodeSetNodeList"
+        })
+
 
 class CommonInterventionTestMalaria(CommonInterventionTest):
     def setUp(self):

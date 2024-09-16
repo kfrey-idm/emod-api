@@ -2,11 +2,21 @@ import numpy as np
 import math
 import scipy.sparse        as sp
 import scipy.sparse.linalg as la
-import pandas as pd
-from copy import deepcopy
 from collections import defaultdict
-from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
+from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, NodeAttributes
 import copy
+from pathlib import Path
+
+class DemographicsTemplatesConstants:
+    """Mortality_Rates_Mod30_5yrs_Xval: Mod 30 values closest to the 5 yr age boundaries based on when EMOD actually updates individual mortality rates.
+                                        The distribution is constant for about 5 years (e.g. values at 0.6 days and 1829.5 days) and linearly interpolated between the 5 yr boundaries. """
+    Mortality_Rates_Mod30_5yrs_Xval = [0.6, 1829.5, 1829.6, 3659.5, 3659.6, 5489.5,
+               5489.6, 7289.5, 7289.6, 9119.5, 9119.6, 10949.5,
+               10949.6, 12779.5, 12779.6, 14609.5, 14609.6, 16439.5,
+               16439.6, 18239.5, 18239.6, 20069.5, 20069.6, 21899.5,
+               21899.6, 23729.5, 23729.6, 25559.5, 25559.6, 27389.5,
+               27389.6, 29189.5, 29189.6, 31019.5, 31019.6, 32849.5,
+               32849.6, 34679.5, 34679.6, 36509.5, 36509.6, 38339.5]
 
 class CrudeRate(): # would like to derive from float
     def __init__(self, init_rate):
@@ -307,6 +317,19 @@ def StepFunctionSusceptibility( demog, protected_setting=0.0, threshold_age=365*
     demog.SetDefaultFromTemplate( suscDist, _set_suscept_complex )
 
 def SimpleSusceptibilityDistribution( demog, meanAgeAtInfection=2.5): 
+    """
+    Rough initialization to reduce burn-in and prevent huge outbreaks at sim start.  
+    For ages 0 through 99 the susceptibility distribution is set to an exponential distribution with an average age at infection.
+    The minimum susceptibility is 2.5% at old ages.
+
+    Args:
+        demog (:py:class:`~emod_api.demographics.Demographics.Demographics`): Demographics object to update
+        meanAgeAtInfection (float, optional): Rough average age at infection in years.
+
+    Note:
+    Requires that ``config.parameters.Susceptibility_Initialization_Distribution_Type=DISTRIBUTION_COMPLEX``
+
+    """
     # set config.Susceptibility_Initialization_Distribution_Type=COMPLEX
     # This function is first to be switched over to be reversed.
     # Calling code in emodpy will call this and pass the demographics instance then we
@@ -450,7 +473,8 @@ def get_fert_dist_from_rates( rates ):
     }
     return IndividualAttributes.FertilityDistribution().from_dict( fertility_distribution=fert_dist["FertilityDistribution"] )
 
-def get_fert_dist( path_to_csv ):
+
+def get_fert_dist(path_to_csv, verbose=False):
     """
         This function takes a fertility csv file (by year and age bin) and populates a DTK demographics.json file,
         and the corresponding config file to do individual pregnancies by age and year from data.
@@ -489,7 +513,8 @@ def get_fert_dist( path_to_csv ):
         line_count = 0
         for row in csv_reader:
             if line_count == 0:
-                print(f'Fertility data file column names are {", ".join(row)}')
+                if verbose:
+                    print(f'Fertility data file column names are {", ".join(row)}')
                 line_count += 1
             year = row["Years"]
             for age_bin in age_bins:
@@ -497,7 +522,8 @@ def get_fert_dist( path_to_csv ):
                 #    data[year] = {}
                 data[year][age_bin] = row[age_bin]
             line_count += 1
-        print(f'Found {line_count} rows of fertility data.')
+        if verbose:
+            print(f'Found {line_count} rows of fertility data.')
         if line_count == 0:
             raise ValueError( f"Read no fertility data from {path_to_csv}." )
     # Need to construct [ 1950, 1954.99, 1955, 1959.99, etc] from ["1950-1955", etc.]
@@ -540,7 +566,7 @@ def InitAgeUniform( demog ):
                 "AgeDistribution2": 18250 }
     demog.SetDefaultFromTemplate( setting, _set_age_simple )
 
-def _computeAgeDist(bval,mvecX,mvecY,fVec):
+def _computeAgeDist(bval, mvecX, mvecY, fVec, max_yr=90):
     """
     Compute equilibrium age distribution given age-specific mortality and crude birth rates
 
@@ -549,12 +575,12 @@ def _computeAgeDist(bval,mvecX,mvecY,fVec):
         mvecX: list of age bins in days
         mvecY: List of per day mortality rate for the age bins
         fVec: Seasonal forcing per month
+        max_yr : maximum agent age in years
 
-    returns ??, MonthlyAgeDist, MonthlyAgeBins
+    returns EquilibPopulationGrowthRate, MonthlyAgeDist, MonthlyAgeBins
     author: Kurt Frey
     """
 
-    max_yr = 90
     bin_size = 30
     day_to_year = 365
 
@@ -643,6 +669,147 @@ def _EquilibriumAgeDistFromBirthAndMortRates(birth_rate=YearlyRate(40/1000.), mo
         }
     return setting
 
-# def MinimalNodeAttributes():
-#    TBD
+
+def birthrate_multiplier(pop_dat_file: Path, base_year: int, start_year: int, max_daily_mort: float=0.01):
+    """
+    Create a birth rate multiplier from UN World Population data file.
+    Args:
+        pop_dat_file: path to UN World Population data file
+        base_year: Base year/Reference year
+        start_year: Read in the pop_dat_file starting with year 'start_year'
+        max_daily_mort: Maximum daily mortality rate
+
+    Returns:
+        bith_rate_multiplier_x, birth_rate_multiplier_y
+    """
+    # Load reference data
+    year_vec, year_init, pop_mat, pop_init = _read_un_worldpop_file(pop_dat_file, base_year, start_year)
+
+    t_delta = np.diff(year_vec)
+    pow_vec = 365.0*t_delta
+    mortvecs = _calculate_mortility_vectors(pop_mat, t_delta, max_daily_mort)
+
+    tot_pop  = np.sum(pop_mat, axis=0)
+    tpop_mid = (tot_pop[:-1]+tot_pop[1:])/2.0
+    pop_corr = np.exp(-mortvecs[0, :]*pow_vec/2.0)
+
+    brate_vec = np.round(pop_mat[0, 1:]/tpop_mid/t_delta*1000.0, 1)/pop_corr
+    brate_val = np.interp(year_init, year_vec[:-1], brate_vec)
+
+    # Calculate birth rate multiplier
+    yrs_off = year_vec[:-1]-year_init
+    yrs_dex = (yrs_off>0)
+
+    birth_rate_mult_x_temp = np.array([0.0] + (365.0*yrs_off[yrs_dex]).tolist())
+    birth_rate_mult_y_temp = np.array([1.0] + (brate_vec[yrs_dex]/brate_val).tolist())
+    bith_rate_multiplier_x = np.zeros(2*len(birth_rate_mult_x_temp)-1)
+    birth_rate_multiplier_y = np.zeros(2*len(birth_rate_mult_y_temp)-1)
+
+    bith_rate_multiplier_x[0::2] = birth_rate_mult_x_temp[0:]
+    birth_rate_multiplier_y[0::2] = birth_rate_mult_y_temp[0:]
+    bith_rate_multiplier_x[1::2] = birth_rate_mult_x_temp[1:]-0.5
+    birth_rate_multiplier_y[1::2] = birth_rate_mult_y_temp[0:-1]
+
+    return bith_rate_multiplier_x, birth_rate_multiplier_y
+
+
+def _calculate_mortility_vectors(pop_mat, t_delta, max_daily_mort):
+    pow_vec = 365.0 * t_delta
+    diff_ratio = (pop_mat[:-1, :-1]-pop_mat[1:,1:])/pop_mat[:-1, :-1]
+    mortvecs   = 1.0-np.power(1.0-diff_ratio, 1.0/pow_vec)
+    mortvecs   = np.minimum(mortvecs, max_daily_mort)
+    mortvecs   = np.maximum(mortvecs,            0.0)
+    return mortvecs
+
+
+def _calculate_birth_rate_vector(pop_mat, mortvecs, t_delta, year_vec, year_init):
+    pow_vec = 365.0*t_delta
+    tot_pop    = np.sum(pop_mat, axis=0)
+    tpop_mid   = (tot_pop[:-1]+tot_pop[1:])/2.0
+    pop_corr   = np.exp(-mortvecs[0, :]*pow_vec/2.0)
+
+    brate_vec  = np.round(pop_mat[0, 1:]/tpop_mid/t_delta*1000.0, 1)/pop_corr
+    brate_val  = np.interp(year_init, year_vec[:-1], brate_vec)
+    return brate_vec, brate_val
+
+def _read_un_worldpop_file(pop_dat_file, base_year, start_year):
+    pop_input = np.loadtxt(pop_dat_file, dtype=int, delimiter=',')
+
+    year_vec = pop_input[0, :] - base_year
+    year_init = start_year - base_year
+    pop_mat = pop_input[1:, :] + 0.1
+
+    pop_init = [np.interp(year_init, year_vec, pop_mat[idx, :]) for idx in range(pop_mat.shape[0])]
+    return year_vec, year_init, pop_mat, pop_init
+
+
+def demographicsBuilder(pop_dat_file: Path, base_year: int, start_year: int=1950, max_daily_mort: float=0.01,
+                        mortality_rate_x_values: list=DemographicsTemplatesConstants.Mortality_Rates_Mod30_5yrs_Xval,
+                        years_per_age_bin: int=5):
+    """
+    Build demographics from UN World Population data.
+    Args:
+        pop_dat_file: path to UN World Population data file
+        base_year: Base year/Reference year
+        start_year: Read in the pop_dat_file starting with year 'start_year'
+        years_per_age_bin: The number of years in one age bin, i.e. in one row of the UN World Population data file
+        max_daily_mort: Maximum daily mortality rate
+        mortality_rate_x_values: The distribution of non-disease mortality for a population.
+
+    Returns:
+        IndividualAttributes, NodeAttributes
+    """
+    Days_per_Year = 365
+
+    year_vec, year_init, pop_mat, pop_init = _read_un_worldpop_file(pop_dat_file, base_year, start_year)
+
+    # create age bins in days
+    pop_age_days = [bin_index * years_per_age_bin * Days_per_Year for bin_index in range(len(pop_init))]
+
+    # Calculate vital dynamics
+    t_delta = np.diff(year_vec)
+    mortvecs = _calculate_mortility_vectors(pop_mat, t_delta, max_daily_mort)
+    brate_vec, brate_val = _calculate_birth_rate_vector(pop_mat, mortvecs, t_delta, year_vec, year_init)
+    birth_rate = brate_val/365.0/1000.0
+
+    na = NodeAttributes()
+    na.birth_rate = birth_rate
+
+    age_y = pop_age_days
+    age_init_cdf = np.cumsum(pop_init[:-1])/np.sum(pop_init)
+    age_x = [0] + age_init_cdf.tolist()
+
+    ad = IndividualAttributes.AgeDistribution()
+    ad.distribution_values = [age_x]
+    ad.result_scale_factor = 1
+    ad.result_values = [age_y]
+
+    mort_vec_x = mortality_rate_x_values
+    mort_year = np.zeros(2*year_vec.shape[0]-3)
+    mort_year[0::2] = year_vec[0:-1]
+    mort_year[1::2] = year_vec[1:-1]-1e-4
+    mort_year = mort_year.tolist()
+
+    mort_mat = np.zeros((len(mort_vec_x), len(mort_year)))
+    mort_mat[0:-2:2, 0::2] = mortvecs
+    mort_mat[1:-2:2, 0::2] = mortvecs
+    mort_mat[0:-2:2, 1::2] = mortvecs[:, :-1]
+    mort_mat[1:-2:2, 1::2] = mortvecs[:, :-1]
+    mort_mat[-2:, :] = max_daily_mort
+
+    md = IndividualAttributes.MortalityDistribution()
+    md.axis_names = ['age', 'year']
+    md.axis_scale_factors = [1, 1]
+    md.num_distribution_axes = 2
+    md.num_population_groups = [len(mort_vec_x), len(mort_year)]
+    md.population_groups = [mort_vec_x, mort_year]
+    md.result_scale_factor = 1
+    md.result_values = mort_mat.tolist()
+
+    ia = IndividualAttributes()
+    ia.age_distribution = ad
+    ia.mortality_distribution_female = md
+    ia.mortality_distribution_male = md
+
+    return ia, na
 

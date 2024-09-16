@@ -78,8 +78,10 @@ class ReadOnlyDict(OrderedDict):
                         if type(v) is str and len(v.split(','))>1:
                             v = v.split(',')[0] # pretty arbitrary but least arbitrary of options it seems
                         #print( f"IMPLICITLY setting {k} to {v}." )
-                        #self[k] = v
-                        self.__setattr__( k, v )
+                        if self["schema"][k]['default'] == self[k]: # only set implicit value if default (i.e. user didn't set it)
+                            self.__setattr__(k, v)
+                        else:
+                            print(f"Default value has been changed, not setting {k} to {v}.")
                         if "implicits" not in self: # This should NOT be needed
                             self["implicits"] = [] 
                         self["implicits"].append( key )
@@ -113,7 +115,7 @@ class ReadOnlyDict(OrderedDict):
         with open( config_name, "w" ) as config_file:
             json.dump( config, config_file, indent=4, sort_keys=True )
 
-    def finalize(self):
+    def finalize(self, verbose=False):
         """
             Remove all params that are disabled by depends-on param being off and schema node.
         """
@@ -129,8 +131,8 @@ class ReadOnlyDict(OrderedDict):
             if key in [ "schema", "explicits", "implicits" ]:
                 continue
             elif key not in self["schema"]:
-                if show_warnings:
-                    print( f"WARNING: During schema-based param purge, {key} not in schema." )
+                if verbose:
+                    print(f"WARNING: During schema-based param purge, {key} not in schema.")
             elif "depends-on" in self["schema"][key]:
                 def purge_key( key ):
                     #print( f"VERBOSE: Considering whether to purge {key}." )
@@ -204,13 +206,6 @@ def uses_old_waning(schema_path=None):
     waning_effects = get_schema(schema_path)["idmTypes"]["idmType:WaningEffect"].keys()
     return any(["WaningEffect" in k for k in waning_effects])
 
-
-def get_default_for_complex_type( schema, idmtype ):
-    """
-        This function used to be more involved and dumb but now it's a passthrough to get_class_with_defaults.
-        If this approach proves robust, it can probably be deprecated. Depends a bit on completeness of schema.
-    """
-    return get_class_with_defaults( idmtype, schema )
 
 def get_schema( schema_path=None ):
     global schema_cache

@@ -1020,6 +1020,40 @@ class DemogTest(unittest.TestCase):
         self.assertEqual(demographics['Nodes'][0]["IndividualAttributes"]['AgeDistribution2'], 600)
         self.assertEqual(demographics['Nodes'][1]["IndividualAttributes"]['AgeDistribution2'], 600)
 
+    def test_applyoverlay_individual_attributes_mortality_distribution(self):
+        mortality_dist_f_1 = IndividualAttributes.MortalityDistribution(result_values=[[123], [345]])
+        mortality_dist_m_1 = IndividualAttributes.MortalityDistribution(result_values=[[123], [345]])
+        mortality_dist_f_2 = IndividualAttributes.MortalityDistribution(result_values=[[123], [345]])
+        mortality_dist_m_2 = IndividualAttributes.MortalityDistribution(result_values=[[123], [345]])
+
+        individual_attributes_1 = IndividualAttributes(mortality_distribution_female=mortality_dist_f_1,
+                                                       mortality_distribution_male=mortality_dist_m_1)
+        individual_attributes_2 = IndividualAttributes(mortality_distribution_female=mortality_dist_f_2,
+                                                       mortality_distribution_male=mortality_dist_m_2)
+
+        nodes = [Node.Node(0, 0, 0, individual_attributes=individual_attributes_1, forced_id=1),
+                 Node.Node(0, 0, 0, individual_attributes=individual_attributes_2, forced_id=2)]
+        demog = Demographics.Demographics(nodes=nodes)
+
+        overlay_nodes = []
+        mortality_dist_f_new = IndividualAttributes.MortalityDistribution(result_values=[[111], [222]])
+        mortality_dist_m_new = IndividualAttributes.MortalityDistribution(result_values=[[333], [444]])
+        new_individual_attributes = IndividualAttributes(mortality_distribution_male=mortality_dist_m_new,
+                                                         mortality_distribution_female=mortality_dist_f_new)
+
+        overlay_nodes.append(Node.OverlayNode(node_id=1, individual_attributes=new_individual_attributes))
+        overlay_nodes.append(Node.OverlayNode(node_id=2, individual_attributes=new_individual_attributes))
+        demog.apply_overlay(overlay_nodes)
+
+        node_0_md_f = demog.to_dict()['Nodes'][0]["IndividualAttributes"]['MortalityDistributionFemale']
+        node_1_md_f = demog.to_dict()['Nodes'][1]["IndividualAttributes"]['MortalityDistributionFemale']
+        node_0_md_m = demog.to_dict()['Nodes'][0]["IndividualAttributes"]['MortalityDistributionMale']
+        node_1_md_m = demog.to_dict()['Nodes'][1]["IndividualAttributes"]['MortalityDistributionMale']
+
+        self.assertEqual(node_0_md_f['ResultValues'], [[111], [222]])
+        self.assertEqual(node_0_md_m['ResultValues'], [[333], [444]])
+        self.assertEqual(node_1_md_f['ResultValues'], [[111], [222]])
+        self.assertEqual(node_1_md_m['ResultValues'], [[333], [444]])
 
     @staticmethod
     def check_for_unique_node_id(nodes):
@@ -1418,6 +1452,18 @@ class DemogTest(unittest.TestCase):
         with open( manifest.fertility_reference_output ) as fert_fp:
             fert_ref = json.load( fert_fp )
         self.assertDictEqual(fert_test, fert_ref)
+
+    def test_set_female_mortality_distribution(self):
+        demog = Demographics.from_template_node()
+        demog.SetMortalityDistributionFemale(Distributions.Constant_Mortality, node_ids=[1])
+        self.assertDictEqual(demog.to_dict()['Nodes'][0]['IndividualAttributes']['MortalityDistributionFemale'],
+                             Distributions.Constant_Mortality.to_dict())
+
+    def test_set_male_mortality_distribution(self):
+        demog = Demographics.from_template_node()
+        demog.SetMortalityDistributionMale(Distributions.Constant_Mortality, node_ids=[1])
+        self.assertDictEqual(demog.to_dict()['Nodes'][0]['IndividualAttributes']['MortalityDistributionMale'],
+                             Distributions.Constant_Mortality.to_dict())
 
     def test_get_node_and_set_property(self):
         demog = Demographics.from_template_node(lat=0, lon=0, pop=100000, name=1, forced_id=1)
@@ -1866,11 +1912,10 @@ class DemographicsOverlayTest(unittest.TestCase):
                                                                                                                       result_scale_factor=1,
                                                                                                                       result_values=[1.0, 0.0])
 
-        overlay = Demographics.DemographicsOverlay(nodes=[1],
-                                                   individual_attributes=individual_attributes,
-                                                   meta_data={"IdReference": "polio-custom"})
+        overlay      = Demographics.DemographicsOverlay(nodes=[Node.OverlayNode(1)], individual_attributes=individual_attributes)
 
-        self.assertDictEqual(reference, overlay.to_dict())
+        overlay_dict = overlay.to_dict()
+        self.assertDictEqual(reference["Defaults"], overlay_dict["Defaults"])
 
     def test_create_overlay_file_2(self):
         # reference from Kurt's demographics_vd000.json
@@ -1961,15 +2006,13 @@ class DemographicsOverlayTest(unittest.TestCase):
                                                                                                             result_values=[[0.0013, 1.0], [0.0013, 1.0]])
 
         node_attributes = NodeAttributes(birth_rate=0.1, growth_rate=1.01)
-        meta_data = {"IdReference": "polio-custom"}
-        nodes = [1, 2]
 
-        overlay = Demographics.DemographicsOverlay(nodes=nodes,
+        overlay = Demographics.DemographicsOverlay(nodes=[Node.OverlayNode(1), Node.OverlayNode(2)],
                                                    individual_attributes=individual_attributes,
-                                                   node_attributes=node_attributes,
-                                                   meta_data=meta_data)
+                                                   node_attributes=node_attributes)
 
-        self.assertDictEqual(reference, overlay.to_dict())
+        overlay_dict = overlay.to_dict()
+        self.assertDictEqual(reference["Defaults"], overlay_dict["Defaults"])
 
     def test_SetCommuter_default(self):
         demog = Demographics.from_template_node()
@@ -2002,6 +2045,48 @@ class DemographicsOverlayTest(unittest.TestCase):
         self.assertTrue(DT._set_regional_migration_filenames.__name__ in implicit_funcs_names)
         for mig_file in demog.migration_files:
             self.assertTrue(os.path.isfile(mig_file), msg=f'commuter_migration.bin was not generated.')
+
+    def test_create_overlay_for_Kurt(self):
+        # ***** Write vital dynamics and susceptibility initialization overlays *****
+        vd_over_dict = dict()
+        node_list = [Node.Node(lat=1, lon=2, pop=123, forced_id=i) for i in [1,2]]
+        mort_vec_X = [1.0, 5.0, 10]
+        mort_year = [10, 20, 30, 90]
+        result_values = [[0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4]]
+        num_population_groups = [len(mort_vec_X), len(mort_year)]
+        population_groups = [mort_vec_X, mort_year]
+
+        # Vital dynamics overlays
+        vd_over_dict['Defaults'] = {'IndividualAttributes': dict()}
+
+        vd_over_dict['Nodes'] = [{'NodeID': node_obj.forced_id} for node_obj in node_list]
+
+        vd_over_dict['Defaults']['IndividualAttributes'] = {'MortalityDistributionMale': dict(),
+                                                            'MortalityDistributionFemale': dict()}
+        individual_attributes=vd_over_dict['Defaults']['IndividualAttributes']
+        individual_attributes['MortalityDistributionMale']['AxisNames'] = ['age', 'year']
+        individual_attributes['MortalityDistributionMale']['AxisScaleFactors'] = [365, 1]
+        individual_attributes['MortalityDistributionMale']['NumPopulationGroups'] = num_population_groups
+        individual_attributes['MortalityDistributionMale']['PopulationGroups'] = population_groups
+        individual_attributes['MortalityDistributionMale']['ResultScaleFactor'] = 1
+        individual_attributes['MortalityDistributionMale']['ResultValues'] = result_values
+
+        individual_attributes['MortalityDistributionFemale']['AxisNames'] = ['age', 'year']
+        individual_attributes['MortalityDistributionFemale']['AxisScaleFactors'] = [365, 1]
+        individual_attributes['MortalityDistributionFemale']['NumPopulationGroups'] = num_population_groups
+        individual_attributes['MortalityDistributionFemale']['PopulationGroups'] = population_groups
+        individual_attributes['MortalityDistributionFemale']['ResultScaleFactor'] = 1
+        individual_attributes['MortalityDistributionFemale']['ResultValues'] = result_values
+
+
+        demog = Demographics.DemographicsOverlay(nodes=[Node.OverlayNode(1),Node.OverlayNode(2)])
+        demog.AddMortalityByAgeSexAndYear(age_bin_boundaries_in_years=mort_vec_X,
+                                          year_bin_boundaries=mort_year,
+                                          male_mortality_rates=result_values,
+                                          female_mortality_rates=result_values)
+
+        overlay_dict = demog.to_dict()
+        self.assertDictEqual(vd_over_dict["Defaults"], overlay_dict["Defaults"])
 
 class DemographicsComprehensiveTests_Migration(unittest.TestCase):
     def setUp(self) -> None:

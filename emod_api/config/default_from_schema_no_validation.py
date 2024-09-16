@@ -58,7 +58,7 @@ def _set_defaults_for_schema_group( default_config, schema_section, custom_type_
                 # e.g., Fractional_Dose_xxx map which has comlex type
                 # Want to call this but we need the full json so we can access the idmType section
                 #  print( "Don't actually want to do this but just testing the concept." )
-                default_config[ "parameters" ][ param ] = s2c.get_default_for_complex_type( custom_type_schema, schema_section[ param ][ "type" ] )
+                default_config[ "parameters" ][ param ] = s2c.get_class_with_defaults( schema_section[ param ][ "type" ], custom_type_schema )
                 default_config[ "parameters" ][ "schema" ][ param ] = schema_section[ param ]
     # Does default_config get passed by reference and modified? :/
 
@@ -123,7 +123,7 @@ def load_default_config_as_rod( config ):
     return config_rod
 
 
-def get_config_from_default_and_params(config_path=None, set_fn=None, config=None):
+def get_config_from_default_and_params(config_path=None, set_fn=None, config=None, verbose=False):
     """
     Use this function to create a valid config.json file from a schema-derived 
     base config, a callback that sets your parameters of interest
@@ -139,13 +139,15 @@ def get_config_from_default_and_params(config_path=None, set_fn=None, config=Non
     if not ((config_path is None) ^ (config is None)):
         raise Exception('Must specify either a default config_path or config, not neither or both.')
 
-    print(f"DEBUG: write_config_from_default_and_params invoked with "
-          f"config_path: {config_path}, config: {config is not None}, {set_fn}.")
+    if verbose:
+        print(f"DEBUG: get_config_from_default_and_params invoked with "
+              f"config_path: {config_path}, config: {config is not None}, {set_fn}.")
 
     # load default config from file if a path was given
     if config_path is not None:
         config = load_default_config_as_rod(config_path)
-        print("DEBUG: Calling set_fn.")
+        if verbose:
+            print("DEBUG: Calling set_fn.")
 
     # now that we have a config (either given or loaded from file), call the (possibly given) callback on it
     if set_fn is not None:

@@ -5,7 +5,24 @@ from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, 
 
 
 class Node(Updateable):
+    """
+    Represent a Node (the metapopulation unit)
+
+    Args:
+        lat (float): Latitude in degrees
+        lon (float): Longitude in degrees
+        pop (float): Population
+        name (str, optional): Facility name
+        area (float, optional): Area
+        forced_id (int, optional): A custom id instead of the default ID based on lat/lon
+        individual_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualAttributes`, optional):
+        individual_properties (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualProperty`, optional):
+        node_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.NodeAttributes`, optional):
+    """    
+
     default_population = 1000
+
+    # ability to resolve between Nodes
     res_in_degrees = 2.5 / 60
 
     def __init__(
@@ -21,15 +38,8 @@ class Node(Updateable):
             node_attributes: NodeAttributes = None,
             meta: dict = None
     ):
-        """
-        Represent a Node
-        :param lat: Latitude
-        :param lon: Longitude
-        :param pop: Population
-        :param name:  Facility name
-        :param area:  Area
-        :param forced_id: Do we want a custom id instead of the normal ID based on lat/lon?
-        """
+        """ Constructor """
+
         super().__init__()
         self.name = name
         self.forced_id = forced_id
@@ -44,6 +54,9 @@ class Node(Updateable):
         return f"{self.node_attributes.name} - ({self.node_attributes.latitude},{self.node_attributes.longitude})"
 
     def to_dict(self) -> dict:
+        """
+        Translate node structure to a dictionary for EMOD
+        """
         if self.name:
             self.node_attributes.name = self.name
 
@@ -61,10 +74,14 @@ class Node(Updateable):
         return d
 
     def to_tuple(self):
+        """
+        Returns a tuple of (latitude, longitude, and initial population)
+        """
         return self.node_attributes.latitude, self.node_attributes.longitude, self.node_attributes.initial_population
 
     @property
     def id(self):
+        """ Returns the node ID"""
         return (
             self.forced_id
             if self.forced_id is not None
@@ -84,8 +101,12 @@ class Node(Updateable):
     def from_data(cls, data: dict):
         """
         Function used to create the node object from data (most likely coming from a demographics file)
-        :param data: 
-        :return: 
+
+        Args: 
+            data (dict): Contains the node definitions
+
+        Returns:
+            A :py:class:`emod_api.Demographics.Node.Node`        
         """
         nodeid = data["NodeID"]
         node_attributes_dict = dict(data.get("NodeAttributes"))
@@ -123,6 +144,7 @@ class Node(Updateable):
 
     @property
     def pop(self):
+        """ initial population """
         return self.node_attributes.initial_population
 
     @pop.setter
@@ -131,6 +153,7 @@ class Node(Updateable):
 
     @property
     def lon(self):
+        """ longitude """
         return self.node_attributes.longitude
 
     @lon.setter
@@ -139,6 +162,7 @@ class Node(Updateable):
 
     @property
     def lat(self):
+        """ latitude """
         return self.node_attributes.latitude
 
     @lat.setter
@@ -147,6 +171,7 @@ class Node(Updateable):
 
     @property
     def birth_rate(self):
+        """ birth rate in births per person per day"""
         return self.node_attributes.birth_rate
 
     @birth_rate.setter
@@ -200,12 +225,14 @@ class OverlayNode(Node):
 
 
 def get_xpix_ypix(nodeid):
+    """ Get pixel position from nodid. Inverse of :py:func:`nodeid_from_lat_lon` """
     ypix = (nodeid - 1) & 2 ** 16 - 1
-    xpix = (nodeid - 1) >> 16
+    xpix = (nodeid - 1) >> 16 # shift bits to the right
     return (xpix, ypix)
 
 
 def lat_lon_from_nodeid(nodeid, res_in_deg=Node.res_in_degrees):
+    """ Inverse of :py:func:`nodeid_from_lat_lon` """
     xpix, ypix = get_xpix_ypix(nodeid)
     lat = (0.5 + ypix) * res_in_deg - 90.0
     lon = (0.5 + xpix) * res_in_deg - 180.0
@@ -213,18 +240,27 @@ def lat_lon_from_nodeid(nodeid, res_in_deg=Node.res_in_degrees):
 
 
 def xpix_ypix_from_lat_lon(lat, lon, res_in_deg=Node.res_in_degrees):
+    """ Pixel position (origin is -90°N and -180°E). No modular arithmentic is done."""    
     xpix = int(math.floor((lon + 180.0) / res_in_deg))
     ypix = int(math.floor((lat + 90.0) / res_in_deg))
     return xpix, ypix
 
 
 def nodeid_from_lat_lon(lat, lon, res_in_deg=Node.res_in_degrees):
+    """ Generate unique identifier from lat, lon. Inverse of  :py:func:`lat_lon_from_nodeid` """
     xpix, ypix = xpix_ypix_from_lat_lon(lat, lon, res_in_deg)
     nodeid = (xpix << 16) + ypix + 1
     return nodeid
 
 
 def nodes_for_DTK(filename, nodes):
+    """
+    Write nodes to a file in JSON format for EMOD
+
+    Args:
+        filename (str): Name of output file
+        nodes (list): List of :py:class:`emod_api.Demographics.Node.Node`
+    """
     with open(filename, "w") as f:
         json.dump(
             {"Nodes": [{"NodeID": n.id, "NodeAttributes": n.to_dict()} for n in nodes]},
@@ -234,4 +270,7 @@ def nodes_for_DTK(filename, nodes):
 
 
 def basicNode(lat: float = 0, lon: float = 0, pop: int = int(1e6), name: str = "node_name", forced_id: int = 1):
+    """
+    A single node with population 1 million
+    """
     return Node(lat, lon, pop, name=name, forced_id=forced_id)

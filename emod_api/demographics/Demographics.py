@@ -12,9 +12,9 @@ from sklearn.preprocessing import StandardScaler
 
 from emod_api.demographics.BaseInputFile import BaseInputFile
 from emod_api.demographics.Node import Node
-from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
+from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, NodeAttributes
 from emod_api.demographics import DemographicsTemplates as DT
-from emod_api.demographics.DemographicsTemplates import CrudeRate, YearlyRate, DtkRate
+from emod_api.demographics.DemographicsTemplates import CrudeRate, YearlyRate, DemographicsTemplatesConstants
 from emod_api.demographics.DemographicsInputDataParsers import node_ID_from_lat_long, duplicate_nodeID_check
 from emod_api.demographics.service import service
 
@@ -27,7 +27,7 @@ from emod_api.migration import migration
 
 def from_template_node(lat=0, lon=0, pop=1000000, name="Erewhon", forced_id=1):
     """
-    Create a single-node Demographics instance from a few params.
+    Create a single-node :py:class:`Demographics` instance from a few parameters.    
     """
     new_nodes = [Node(lat, lon, pop, forced_id=forced_id, name=name)]
     return Demographics(nodes=new_nodes)
@@ -35,7 +35,7 @@ def from_template_node(lat=0, lon=0, pop=1000000, name="Erewhon", forced_id=1):
 # MOVE TO demographics/DemographicsInputDataParsers.py
 def from_file(base_file):
     """
-    Create a Demographics instance from an existing demographics file.
+    Create a :py:class:`Demographics` instance from an existing demographics file.
     """
     with open(base_file, "rb") as src:
         raw = json.load(src)
@@ -63,22 +63,38 @@ def get_node_ids_from_file(demographics_file):
 def get_node_pops_from_params(tot_pop, num_nodes, frac_rural):
     """
     Get a list of node populations from the params used to create a sparsely 
-    parameterized multi-node Demographics instance.
+    parameterized multi-node :py:class:`Demographics` instance. The first population 
+    in the list is the "urban" population and remaning populations are roughly drawn from a
+    log-uniform distribution.
+
+    Args:
+        tot_pop (int): Sum of all node populations (not guaranteed)
+        num_nodes (int): The total number of nodes.
+        frac_rural (float): The fraction of the total population that is to be distributed across the `num_nodes`-1 "rural" nodes. 
+
+    Returns:
+        A list containing the urban node population followed by the rural nodes.
     """
-    # Generate node sizes
+
+    # Draw from a log-uniform or reciprocal distribution (support from (1, \infty))
     nsizes = np.exp( -np.log(np.random.rand(num_nodes - 1)))
+    # normalize to frac_rural
     nsizes = frac_rural * nsizes / np.sum(nsizes)
+    # require atleast 100 people
     nsizes = np.minimum(nsizes, 100 / tot_pop)
+    # normalize to frac_rural
     nsizes = frac_rural * nsizes / np.sum(nsizes)
+    # add the urban node
     nsizes = np.insert(nsizes, 0, 1 - frac_rural)
+    # round the populations to the nearest integer and change type to list
     npops = ((np.round(tot_pop * nsizes, 0)).astype(int)).tolist()
     return npops
 
 
 def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_params", random_2d_grid=False):
     """
-    Create an EMOD-compatible Demographics object with the population and numbe of nodes specified.
-
+    Create an EMOD-compatible :py:class:`Demographics` object with the population and numbe of nodes specified.
+ 
     Args:
         tot_pop: The total population.
         num_nodes: Number of nodes. Can be defined as a two-dimensional grid  of nodes [longitude, latitude].
@@ -89,7 +105,7 @@ def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_par
         random_2d_grid: Create a random distanced grid with num_nodes nodes.
 
     Returns:
-        Object of type Demographics
+        A :py:class:`Demographics` object
     """
     if frac_rural > 1.0:
         raise ValueError( f"frac_rural can't be greater than 1.0" )
@@ -127,7 +143,12 @@ def from_params(tot_pop=1000000, num_nodes=100, frac_rural=0.3, id_ref="from_par
 
 def from_csv(input_file, res=30/3600, id_ref="from_csv"):
     """
-    Create an EMOD-compatible Demographics instance from a csv population-by-node file.
+    Create an EMOD-compatible :py:class:`Demographics` instance from a csv population-by-node file.
+
+    Args:
+        input_file (str): Filename
+        res (float, optional): Resolution of the nodes in arc-seconds
+        id_ref (str, optional): Description of the source of the file.
     """
     def get_value(row, headers):
         for h in headers:
@@ -215,7 +236,7 @@ def from_pop_raster_csv(
         site (str, optional): The site name or identifier. Default is "No_Site".
     
     Returns:
-        Demographics object: The generated demographics object based on the grid file.
+        :py:class`Demographics` object: The generated demographics object based on the grid file.
     
     Raises:
         N/A
@@ -237,45 +258,24 @@ def from_pop_csv(
     """
     return from_pop_raster_csv( pop_filename_in, res, id_ref, pop_filename_out, site )
 
-class Demographics(BaseInputFile):
+class DemographicsBase(BaseInputFile):
     """
-    This class is a container of data necessary to produce a EMOD-valid demographics input file. It can be initialized from 
-    an existing valid demographics.joson type file or from an array of valid Nodes.
+    Base class for :py:obj:`emod_api:emod_api.demographics.Demographics` and :py:obj:`emod_api:emod_api.demographics.DemographicsOverlay`.
     """
-    def __init__(self, nodes, idref="Gridded world grump2.5arcmin", base_file=None):
-        """
-        A class to create demographics.
-        :param nodes: list of Nodes
-        :param idref: A name/reference
-        :param base_file: A demographics file in json format
-        """
-        super(Demographics, self).__init__(idref) 
+    def __init__(self, nodes, idref):
+        super(DemographicsBase, self).__init__(idref=idref)
         self._nodes = nodes
         self.idref = idref
         self.raw = None
         self.implicits = list()
         self.migration_files = list()
 
-        if base_file:
-            with open(base_file, "rb") as src:
-                self.raw = json.load(src)
-        else:
-            meta = self.generate_headers()
-            self.raw = {"Metadata": meta, "Defaults": {}}
+        meta = self.generate_headers()
+        self.raw = {"Defaults": dict(), "Metadata": meta}
 
-            self.SetMinimalNodeAttributes()
-
-            self.raw["Defaults"]["IndividualAttributes"] = {}
-            # Uniform prevalence between .1 and .3
-            #self.raw["Defaults"]["IndividualAttributes"].update( DT.InitPrevUniform() )
-            #self.raw["Defaults"]["IndividualAttributes"].update( DT.InitSusceptConstant() )
-            self.raw["Defaults"]["IndividualAttributes"].update( DT.NoRisk() )
-            #self.raw["Defaults"]["IndividualAttributes"].update( DT.InitAgeUniform() )
-            DT.NoInitialPrevalence(self) # does this need to be called?
-            #DT.InitSusceptConstant(self) # move this to Measles and maybe other subclasses
-            #DT.NoRisk()
-            self.raw["Defaults"]["IndividualProperties"] = []
-            DT.InitAgeUniform(self)
+        self.raw["Defaults"]["NodeAttributes"]       = dict()
+        self.raw["Defaults"]["IndividualAttributes"] = dict()
+        self.raw["Defaults"]["IndividualProperties"] = list()
 
     def apply_overlay(self, overlay_nodes: list):
         """
@@ -289,27 +289,6 @@ class Demographics(BaseInputFile):
         for index, node in enumerate(self.nodes):
             if map_ids_overlay.get(node.forced_id):
                 self.nodes[index].update(map_ids_overlay[node.forced_id])
-
-    def to_dict(self):
-        self.raw["Nodes"] = []
-
-        for node in self._nodes:
-            d = node.to_dict()
-            d.update(node.meta)
-            self.raw["Nodes"].append(d)
-
-        # Update node count
-        self.raw["Metadata"]["NodeCount"] = len(self._nodes)
-        return self.raw
-
-    def generate_file(self, name="demographics.json"):
-        """
-        Write the contents of the instance to an EMOD-compatible (JSON) file.
-        """
-        with open(name, "w") as output:
-            json.dump(self.to_dict(), output, indent=3, sort_keys=True)
-
-        return name
 
     def send( self, write_to_this, return_from_forked_sender=False ):
         """
@@ -747,6 +726,63 @@ class Demographics(BaseInputFile):
         if self.implicits is not None:
             self.implicits.append(DT._set_mortality_age_gender)
 
+    def SetVitalDynamicsFromWHOFile(self, pop_dat_file: pathlib.Path, base_year: int, start_year: int=1950, max_daily_mort: float=0.01,
+                                    mortality_rate_x_values: list=DemographicsTemplatesConstants.Mortality_Rates_Mod30_5yrs_Xval, years_per_age_bin: int=5):
+        """
+        Build demographics from UN World Population data.
+        Args:
+            pop_dat_file: path to UN World Population data file
+            base_year: Base year/Reference year
+            start_year: Read in the pop_dat_file starting with year 'start_year'
+            years_per_age_bin: The number of years in one age bin, i.e. in one row of the UN World Population data file
+            max_daily_mort: Maximum daily mortality rate
+            mortality_rate_x_values: The distribution of non-disease mortality for a population.
+
+        Returns:
+            IndividualAttributes, NodeAttributes
+        """
+        attributes = DT.demographicsBuilder(pop_dat_file, base_year, start_year, max_daily_mort, mortality_rate_x_values, years_per_age_bin)
+        self.SetVitalDynamicsFromTemplate(attributes)
+
+    def SetMortalityDistributionFemale(self, distribution: IndividualAttributes.MortalityDistribution = None, node_ids: List[int] = None):
+        """
+        Set a default female mortality distribution for all nodes or per node. Turn on Enable_Natural_Mortality implicitly.
+        Args:
+            distribution: distribution
+            node_ids: a list of node_ids
+
+        Returns:
+            None
+        """
+
+        if node_ids is None:
+            self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionFemale"] = distribution.to_dict()
+        else:
+            for node_id in node_ids:
+                self.get_node(node_id)._set_mortality_distribution_female(distribution)
+
+        if self.implicits is not None:
+            self.implicits.append(DT._set_mortality_age_gender)
+
+    def SetMortalityDistributionMale(self, distribution: IndividualAttributes.MortalityDistribution = None, node_ids: List[int] = None):
+        """
+        Set a default male mortality distribution for all nodes or per node. Turn on Enable_Natural_Mortality implicitly.
+        Args:
+            distribution: distribution
+            node_ids: a list of node_ids
+
+        Returns:
+            None
+        """
+        if node_ids is None:
+            self.raw["Defaults"]["IndividualAttributes"]["MortalityDistributionMale"] = distribution.to_dict()
+        else:
+            for node_id in node_ids:
+                self.get_node(node_id)._set_mortality_distribution_male(distribution)
+
+        if self.implicits is not None:
+            self.implicits.append(DT._set_mortality_age_gender)
+
     def SetMortalityOverTimeFromData(self, data_csv, base_year, node_ids=[]):
         """
         Set default mortality rates for all nodes or per node. Turn on mortality configs implicitly. You can use 
@@ -914,6 +950,16 @@ class Demographics(BaseInputFile):
         if self.implicits is not None:
             self.implicits.append(setter_fn)
 
+    def SetVitalDynamicsFromTemplate(self, template):
+        # Set IndividualAttributes and config parameters
+        self.SetDefaultFromTemplate(template[0].to_dict())
+        if self.implicits is not None:
+            self.implicits.append(DT._set_age_complex)
+            self.implicits.append(DT._set_mortality_age_gender_year)
+
+        # Set NodeAttributes and config parameters
+        self.SetNodeDefaultFromTemplate(template[1].to_dict(), DT._set_enable_births)
+
     def SetEquilibriumAgeDistFromBirthAndMortRates( self, CrudeBirthRate=CrudeRate(40), CrudeMortRate=CrudeRate(20), node_ids=None ):
         """
         Set the inital ages of the population to a sensible equilibrium profile based on the specified input birth and death rates. Note this does not set the fertility and mortality rates.
@@ -1019,6 +1065,59 @@ class Demographics(BaseInputFile):
         Set the initial risk for each new individual to a value drawn from an exponential distribution.
         """
         DT.InitRiskExponential( self, mean=mean )
+
+    def AddMortalityByAgeSexAndYear(self, age_bin_boundaries_in_years: List[float],
+                                    year_bin_boundaries: List[float],
+                                    male_mortality_rates: List[List[float]],
+                                    female_mortality_rates: List[List[float]]):
+
+        assert len(age_bin_boundaries_in_years) == len(male_mortality_rates), "One array with distributions per age " \
+                                                                              "bin is required. \n number of age bins " \
+                                                                              "= {len(age_bin_boundaries_in_years)} " \
+                                                                              "number of male mortality rates = {len(" \
+                                                                              "male_mortality_rates)} "
+        assert len(age_bin_boundaries_in_years) == len(female_mortality_rates), "One array with distributions per age " \
+                                                                                "bin is required. \n number of age " \
+                                                                                "bins = {len(" \
+                                                                                "age_bin_boundaries_in_years)} number " \
+                                                                                "of female mortality rates = {len(" \
+                                                                                "male_mortality_rates)} "
+        for yearly_mort_rate in male_mortality_rates:
+            assert len(year_bin_boundaries) == len(yearly_mort_rate), "The number of year bins must be equal the " \
+                                                                      "number of male mortality rates per year.\n" \
+                                                                      "number of year bins = {len(" \
+                                                                      "year_bin_boundaries)} number of male mortality " \
+                                                                      "rates  = {len(yearly_mort_rate)} "
+        for yearly_mort_rate in female_mortality_rates:
+            assert len(year_bin_boundaries) == len(yearly_mort_rate), "The number of year bins must be equal the " \
+                                                                         "number of female mortality rates per year.\n " \
+                                                                         "number of year bins = {len(" \
+                                                                         "year_bin_boundaries)} number of male " \
+                                                                         "mortality rates  = {len(yearly_mort_rate)} "
+
+        axis_names = ["age", "year"]
+        axis_scale_factors = [365, 1]
+        num_population_groups = [len(age_bin_boundaries_in_years), len(year_bin_boundaries)]
+        population_groups = [age_bin_boundaries_in_years, year_bin_boundaries]
+
+        mort_distr_male = IndividualAttributes.MortalityDistribution(axis_names=axis_names,
+                                                                     axis_scale_factors=axis_scale_factors,
+                                                                     num_population_groups=num_population_groups,
+                                                                     population_groups=population_groups,
+                                                                     result_scale_factor=1.0, # result_values * scale_factor
+                                                                     result_values=male_mortality_rates)
+        self.SetMortalityDistributionMale(mort_distr_male)
+
+        mort_distr_female = IndividualAttributes.MortalityDistribution(axis_names=axis_names,
+                                                                       axis_scale_factors=axis_scale_factors,
+                                                                       num_population_groups=num_population_groups,
+                                                                       population_groups=population_groups,
+                                                                       result_scale_factor=1.0, # result_values * scale_factor
+                                                                       result_values=female_mortality_rates)
+        self.SetMortalityDistributionFemale(mort_distr_female)
+
+        if self.implicits is not None:
+            self.implicits.append(DT._set_mortality_age_gender_year)
 
     def _SetInfectivityMultiplierByNode( self, node_id_to_multplier ):
         raise ValueError( "Not Yet Implemented." )
@@ -1267,37 +1366,102 @@ class Demographics(BaseInputFile):
         self.SetDefaultFromTemplate( female_mort )
 
 
-class DemographicsOverlay:
-    def __init__(self, nodes=None, meta_data: dict = None,
+class DemographicsOverlay(DemographicsBase):
+    """
+    In contrast to class :py:obj:`emod_api:emod_api.demographics.Demographics` this class does not set any defaults.
+    It inherits from :py:obj:`emod_api:emod_api.demographics.DemographicsBase` so all functions that can be used to
+    create demographics can also be used to create an overlay file. Parameters can be changed/set specifically by
+    passing node_id, individual attributes, and individual attributes to the constructor.
+    """
+
+    def __init__(self, nodes: list = None,
+                 idref: str = None,
                  individual_attributes=None,
-                 node_attributes=None,
-                 mortality_distribution=None):
-        self.nodes = nodes
+                 node_attributes=None):
+        """
+        A class to create demographic overlays.
+        Args:
+            nodes: Overlay is applied to these nodes.
+            idref: A name/reference
+            individual_attributes: Object of type :py:obj:`emod_api:emod_api.demographics.PropertiesAndAttributes.IndividualAttributes to overwrite individual attributes
+            node_attributes:  Object of type :py:obj:`emod_api:emod_api.demographics.PropertiesAndAttributes.NodeAttributes to overwrite individual attributes
+        """
+        super(DemographicsOverlay, self).__init__(nodes=nodes, idref=idref)
+
         self.individual_attributes = individual_attributes
         self.node_attributes = node_attributes
-        self.meta_data = meta_data
-        self.mortality_distribution = mortality_distribution
+
+        if self.individual_attributes is not None:
+            self.raw["Defaults"]["IndividualAttributes"] = self.individual_attributes.to_dict()
+
+        if self.node_attributes is not None:
+            self.raw["Defaults"]["NodeAttributes"] = self.node_attributes.to_dict()
 
     def to_dict(self):
-        assert self.nodes
 
-        out = {"Defaults": {}}
-        if self.individual_attributes:
-            out["Defaults"]["IndividualAttributes"] = self.individual_attributes.to_dict()
+        d = {"Defaults": dict()}
+        if self.raw["Defaults"]["IndividualAttributes"]:
+            d["Defaults"]["IndividualAttributes"] = self.raw["Defaults"]["IndividualAttributes"]
 
-        if self.node_attributes:
-            out["Defaults"]["NodeAttributes"] = self.node_attributes.to_dict()
+        if self.raw["Defaults"]["NodeAttributes"]:
+            d["Defaults"]["NodeAttributes"] = self.raw["Defaults"]["NodeAttributes"]
 
-        if self.meta_data:
-            out["Metadata"] = self.meta_data    # there is no metadata class
+        if self.raw["Metadata"]:
+            d["Metadata"] = self.raw["Metadata"]    # there is no metadata class
 
-        nodes_list = []
-        for n in self.nodes:
-            nodes_list.append({"NodeID": n})
-        out["Nodes"] = nodes_list
+        if self.raw["Defaults"]["IndividualProperties"]:
+            d["Defaults"]["IndividualProperties"] = self.raw["Defaults"]["IndividualProperties"]
 
-        return out
+        d["Nodes"] = [{"NodeID": n.forced_id} for n in self.nodes]
+
+        return d
 
     def to_file(self, file_name="demographics_overlay.json"):
+        """
+        Write the contents of the instance to an EMOD-compatible (JSON) file.
+        """
         with open(file_name, "w") as demo_override_f:
-            json.dump(self.to_dict(), demo_override_f, indent=4)
+            json.dump(self.to_dict(), demo_override_f)
+
+class Demographics(DemographicsBase):
+    """
+    This class is a container of data necessary to produce a EMOD-valid demographics input file. It can be initialized from
+    an existing valid demographics.joson type file or from an array of valid Nodes.
+    """
+    def __init__(self, nodes, idref="Gridded world grump2.5arcmin", base_file=None):
+        """
+        A class to create demographics.
+        :param nodes: list of Nodes
+        :param idref: A name/reference
+        :param base_file: A demographics file in json format
+        """
+        super(Demographics, self).__init__(nodes=nodes, idref=idref)
+
+        if base_file:
+            with open(base_file, "rb") as src:
+                self.raw = json.load(src)
+        else:
+            self.SetMinimalNodeAttributes()
+            DT.NoInitialPrevalence(self) # does this need to be called?
+            DT.InitAgeUniform(self)
+
+    def to_dict(self):
+        self.raw["Nodes"] = []
+
+        for node in self._nodes:
+            d = node.to_dict()
+            d.update(node.meta)
+            self.raw["Nodes"].append(d)
+
+        # Update node count
+        self.raw["Metadata"]["NodeCount"] = len(self._nodes)
+        return self.raw
+
+    def generate_file(self, name="demographics.json"):
+        """
+        Write the contents of the instance to an EMOD-compatible (JSON) file.
+        """
+        with open(name, "w") as output:
+            json.dump(self.to_dict(), output, indent=3, sort_keys=True)
+
+        return name

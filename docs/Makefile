@@ -240,4 +240,6 @@ htmlnobreak:
 	@echo
 	@echo "Build validation finished. The HTML pages are in $(BUILDDIR)/html."
 
-
+.PHONY: serve
+serve:
+	python -m http.server 4000 -d _build/html/
