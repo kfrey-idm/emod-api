@@ -154,6 +154,13 @@ class ReadOnlyDict(OrderedDict):
             elif v == "UNINITIALIZED STRING": # work around current schema string defaults
                 self[key] = ""
 
+        # Logging parameters are implicit and only need to be retained if other than default
+        if("logLevel_default" in self.keys()):
+            ll_default = self["logLevel_default"]
+            for key, val in self.items():
+                if(key.startswith("logLevel_") and val == ll_default and key != "logLevel_default"):
+                    nuke_list.append(key)
+
         if "Actual_IndividualIntervention_Config" in self.keys() and "Actual_NodeIntervention_Config" in self.keys():
             # Need to purge one of these; yes this could be done cleverer but this is easy to follow and maintain
             ind_len = len( self["Actual_IndividualIntervention_Config"] )
@@ -243,7 +250,7 @@ def get_class_with_defaults( classname, schema_path=None ):
                 default = schema[key]["default"]
             elif "idmType:" in schema[key]["type"]:
                 idmtype = schema[key]["type"]
-                default = get_default_for_complex_type( types_schema, idmtype )
+                default = get_class_with_defaults( idmtype, types_schema )
         except Exception as ex:
             print( "ERROR: " + str( ex ) )
             raise ValueError( f"ERROR: " + str( ex ) )
@@ -261,6 +268,8 @@ def get_class_with_defaults( classname, schema_path=None ):
                         ret_json[ce_key] = schema_blob[ce_key]["default"]
                     elif ce_key == "Nodeset_Config": # this doesn't look a real pattern
                         ret_json[ce_key] = get_class_with_defaults( "NodeSetAll", schema_path )
+                    elif "type" in schema_blob[ce_key]:
+                        ret_json[ce_key] = get_class_with_defaults( schema_blob[ce_key]["type"], schema_path )
                     elif ce_key != "class":
                         ret_json[ce_key] = {}
                 except Exception as ex:
@@ -301,6 +310,8 @@ def get_class_with_defaults( classname, schema_path=None ):
                         elif "min" in schema_blob[type_key] and schema_blob[type_key]["min"] != "null":
                             print( f"Falling back to min for key {type_key} as no default found." );
                             new_elem[type_key] = schema_blob[type_key]["min"]
+                        elif "type" in schema_blob[type_key]:
+                            new_elem[type_key] = get_class_with_defaults( schema_blob[type_key]["type"], schema )
                         elif type_key != "class":
                             new_elem[type_key] = {}
                     except Exception as ex:
@@ -408,7 +419,7 @@ def get_class_with_defaults( classname, schema_path=None ):
                             elif "String" in idmtype:
                                 ret_json[iv_key] = ""
                             elif "idmType:" in schema_blob[iv_key]["type"]:
-                                ret_json[iv_key] = get_default_for_complex_type( schema["idmTypes"], idmtype )
+                                ret_json[iv_key] = get_class_with_defaults( idmtype, schema["idmTypes"] )
                             elif "List" in iv_key:  # a bit lame: to handle Intervention_List which has bad schema bug
                                 ret_json[iv_key] = []
                             else:
