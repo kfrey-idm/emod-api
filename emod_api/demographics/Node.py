@@ -5,43 +5,38 @@ from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, 
 
 
 class Node(Updateable):
-    """
-    Represent a Node (the metapopulation unit)
-
-    Args:
-        lat (float): Latitude in degrees
-        lon (float): Longitude in degrees
-        pop (float): Population
-        name (str, optional): Facility name
-        area (float, optional): Area
-        forced_id (int, optional): A custom id instead of the default ID based on lat/lon
-        individual_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualAttributes`, optional):
-        individual_properties (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualProperty`, optional):
-        node_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.NodeAttributes`, optional):
-    """    
-
+    # TODO: clean this up, without being all caps it looks like a modifiable attribute of a Node, not a class const
     default_population = 1000
 
     # ability to resolve between Nodes
     res_in_degrees = 2.5 / 60
 
-    def __init__(
-            self,
-            lat,
-            lon,
-            pop,
-            name: str = None,
-            area: float = None,
-            forced_id: int = None,
-            individual_attributes: IndividualAttributes = None,
-            individual_properties: IndividualProperties = None,
-            node_attributes: NodeAttributes = None,
-            meta: dict = None
-    ):
-        """ Constructor """
+    def __init__(self,
+                 lat,
+                 lon,
+                 pop,
+                 name: str = None,
+                 area: float = None,
+                 forced_id: int = None,
+                 individual_attributes: IndividualAttributes = None,
+                 individual_properties: IndividualProperties = None,
+                 node_attributes: NodeAttributes = None,
+                 meta: dict = None):
+        """
+        Represent a Node (the metapopulation unit)
 
+        Args:
+            lat (float): Latitude in degrees
+            lon (float): Longitude in degrees
+            pop (float): Population
+            name (str, optional): Facility name
+            area (float, optional): Area
+            forced_id (int, optional): A custom id instead of the default ID based on lat/lon
+            individual_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualAttributes`, optional):
+            individual_properties (:py:class:`emod_api.demographics.PropertiesAndAttributes.IndividualProperty`, optional):
+            node_attributes (:py:class:`emod_api.demographics.PropertiesAndAttributes.NodeAttributes`, optional):
+        """
         super().__init__()
-        self.name = name
         self.forced_id = forced_id
         self.meta = meta if meta else {}
         self.individual_attributes = individual_attributes if individual_attributes else IndividualAttributes()
@@ -49,17 +44,38 @@ class Node(Updateable):
         self.node_attributes = NodeAttributes(latitude=lat, longitude=lon, initial_population=pop, name=name, area=area)
         if node_attributes is not None:
             self.node_attributes.update(node_attributes)
+        # TODO/NOTE: the name attribute here does not exist in EMOD and will not appear in any reports. At best it is
+        #  for user convenience during the emodpy/api phase of building inputs.
+        #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/693
+        if name is not None:
+            self.name = name
+
+    @property
+    def name(self):
+        return self.node_attributes.name
+
+    @name.setter
+    def name(self, value):
+        self.node_attributes.name = value
 
     def __repr__(self):
         return f"{self.node_attributes.name} - ({self.node_attributes.latitude},{self.node_attributes.longitude})"
 
+    def has_individual_property(self, property_key: str) -> bool:
+        return self.individual_properties.has_individual_property(property_key=property_key)
+
+    def get_individual_property(self, property_key: str) -> IndividualProperty:
+        if not self.has_individual_property(property_key=property_key):
+            raise Exception(f"No such individual property {property_key} exists in node: {self.id}")
+        ip_by_name = {ip.property: ip for ip in self.individual_properties}
+        return ip_by_name[property_key]
+
+    # TODO: refactor this to report self.meta (metadata) as code using this is forced to workaround the oversight
+    #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/702
     def to_dict(self) -> dict:
         """
         Translate node structure to a dictionary for EMOD
         """
-        if self.name:
-            self.node_attributes.name = self.name
-
         d = {"NodeID": self.id,
              "NodeAttributes": self.node_attributes.to_dict()}
 
@@ -202,6 +218,9 @@ class Node(Updateable):
     def _set_fertility_distribution(self, distribution: IndividualAttributes.FertilityDistribution = None):
         self.individual_attributes.fertility_distribution = distribution
 
+    # TODO: if an age distribution is set, we are using a complex distribution (always?).
+    #  Should disable self.individual_attributesage_distribution_flag (None).
+    #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/705
     def _set_age_distribution(self, distribution: IndividualAttributes.AgeDistribution = None):
         self.individual_attributes.age_distribution = distribution
 

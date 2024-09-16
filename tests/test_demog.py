@@ -1,16 +1,15 @@
-from ast import Assert
 import os
 import json
-from pickle import TRUE
-from traceback import print_tb
 import unittest
-from emod_api import demographics
 import emod_api.demographics.Demographics as Demographics
 import emod_api.demographics.Node as Node
 import emod_api.demographics.DemographicsTemplates as DT
-import manifest
+try:
+    import manifest  # works for jenkins
+except ImportError:
+    from . import manifest  # works for local running
 import math
-from datetime import date, datetime
+from datetime import date
 import getpass
 import pandas as pd
 import numpy as np
@@ -18,11 +17,6 @@ import pathlib
 from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
 import emod_api.demographics.PreDefinedDistributions as Distributions
 import pprint
-
-# from pathlib import Path
-# import sys
-# parent = Path(__file__).resolve().parent
-# sys.path.append(str(parent))
 
 
 class DemogTest(unittest.TestCase):
@@ -483,11 +477,11 @@ class DemogTest(unittest.TestCase):
             demog_json = json.load(demo_file)
 
         # Checking we can grab a node
-        inspect_node = demog.get_node(demog.nodes[15].id)
+        inspect_node = demog.get_node_by_id(node_id=demog.nodes[15].id)
         self.assertEqual(inspect_node.id, demog.nodes[15].id, msg=f"This node should have an id of {demog.nodes[15].id} but instead it is {inspect_node.id}")
 
         with self.assertRaises(ValueError) as context:
-            bad_node = demog.get_node(161839)
+            bad_node = demog.get_node_by_id(node_id=161839)
 
         self.assertEqual(demog_json['Metadata']['IdReference'], id_ref)
 
@@ -535,7 +529,7 @@ class DemogTest(unittest.TestCase):
             demog_json = json.load(demo_file)
 
         # Checking we can grab a node
-        inspect_node = demog.get_node(demog.nodes[0].id)
+        inspect_node = demog.get_node_by_id(node_id=demog.nodes[0].id)
         self.assertEqual(inspect_node.id, demog.nodes[0].id, msg=f"This node should have an id of {demog.nodes[0].id} "
                                                                  f"but instead it is {inspect_node.id}")
 
@@ -585,12 +579,12 @@ class DemogTest(unittest.TestCase):
             demog_json = json.load(demo_file)
 
         # Checking we can grab a node
-        inspect_node = demog.get_node(demog.nodes[0].id)
+        inspect_node = demog.get_node_by_id(node_id=demog.nodes[0].id)
         self.assertEqual(inspect_node.id, demog.nodes[0].id,
                          msg=f"This node should have an id of {demog.nodes[0].id} but instead it is {inspect_node.id}")
 
         with self.assertRaises(ValueError) as context:
-            bad_node = demog.get_node(161839)
+            bad_node = demog.get_node_by_id(node_id=161839)
 
         id_reference = 'from_raster'  # hardcoded value
         self.assertEqual(demog_json['Metadata']['IdReference'], id_reference)
@@ -612,7 +606,7 @@ class DemogTest(unittest.TestCase):
         node_ids = list(data["node_id"])
         for node_id in node_ids:
             birth_rate = data[data["node_id"] == node_id]["birth_rate"].iloc[0]
-            self.assertAlmostEqual(demog.get_node(node_id).birth_rate, birth_rate)
+            self.assertAlmostEqual(demog.get_node_by_id(node_id=node_id).birth_rate, birth_rate)
 
         bad_input = os.path.join(manifest.current_directory, 'data', 'demographics', 'bad_nodes_with_birthrate.csv')
         with self.assertRaises(ValueError):
@@ -689,7 +683,7 @@ class DemogTest(unittest.TestCase):
         num_nodes = 5
         frac_rural = 0.1
         demog = Demographics.from_params(tot_pop=totpop, num_nodes=num_nodes, frac_rural=frac_rural, random_2d_grid=True)
-        self.assertEqual(demog.node_count, num_nodes)
+        self.assertEqual(len(demog.nodes), num_nodes)
         for node_idx, node in enumerate(demog.nodes):
             self.assertEqual(node_idx + 1, node.forced_id)
             self.assertGreater(node.lat, -1)
@@ -843,7 +837,7 @@ class DemogTest(unittest.TestCase):
                                                           transmission_matrix=transmission_matrix
                                                           ))
         node = demo.nodes[2]
-        node.individual_properties.add(IndividualProperty())
+        node.individual_properties.add(IndividualProperty(property='I like chocolate'))
         node.individual_properties[0].initial_distribution = initial_distribution
         node.individual_properties[0].property = property
         node.individual_properties[0].values = values
@@ -861,8 +855,8 @@ class DemogTest(unittest.TestCase):
         self.assertDictEqual(demo.nodes[2].individual_properties[0].to_dict(), individual_properties_reference)
 
     def test_default_individual_property_parameters_to_dict(self):
-        individual_property = IndividualProperty()
-        self.assertDictEqual(individual_property.to_dict(), {})  # empty, no keys/values added
+        individual_property = IndividualProperty(property='very meaningful')
+        self.assertDictEqual(individual_property.to_dict(), {'Property': 'very meaningful'})  # empty, no keys/values added
 
     def test_overlay_individual_properties(self):
         # create simple demographics
@@ -893,7 +887,7 @@ class DemogTest(unittest.TestCase):
         new_population = 999
         new_property = "Test_Property"
 
-        ip_overlay = IndividualProperty()
+        ip_overlay = IndividualProperty(property='yet another one')
         ip_overlay.initial_distribution = new_population
         ip_overlay.property = new_property
         node.individual_properties[0].update(ip_overlay)
@@ -955,10 +949,10 @@ class DemogTest(unittest.TestCase):
                 [0.0, 1]],
             "Route": "Contact"}
         new_individual_properties = IndividualProperties()
-        new_individual_properties.add(IndividualProperty(initial_distribution,
-                                                                   property=property,
-                                                                   values=values,
-                                                                   transmission_matrix=transmission_matrix))
+        new_individual_properties.add(IndividualProperty(initial_distribution=initial_distribution,
+                                                         property=property,
+                                                         values=values,
+                                                         transmission_matrix=transmission_matrix))
 
         overlay_nodes.append(Node.OverlayNode(node_id=1, individual_properties=new_individual_properties))
         overlay_nodes.append(Node.OverlayNode(node_id=2, individual_properties=new_individual_properties))
@@ -1072,40 +1066,34 @@ class DemogTest(unittest.TestCase):
         female_input_file = os.path.join(self.out_folder, "Malawi_female_mortality.csv")
         predict_horizon = 2060
         results_scale_factor = 1.0 / 340.0
-        demog.infer_natural_mortality(male_input_file, female_input_file, predict_horizon=predict_horizon,
-                                      results_scale_factor=results_scale_factor, csv_out=True)
+        female_distribution, male_distribution = demog.infer_natural_mortality(file_male=male_input_file,
+                                                                               file_female=female_input_file,
+                                                                               predict_horizon=predict_horizon,
+                                                                               results_scale_factor=results_scale_factor,
+                                                                               csv_out=True)
         male_input = pd.read_csv(male_input_file)
         female_input = pd.read_csv(female_input_file)
-        output = demog.raw['Defaults']
-
-        # Check population group consistency
-        male_distribution = output['IndividualAttributes']['MortalityDistributionMale']
-        female_distribution = output['IndividualAttributes']['MortalityDistributionFemale']
 
         # Check age group
-        male_age_groups = male_distribution['NumPopulationGroups'][0]
-        self.assertEqual(len(male_distribution['PopulationGroups'][0]), male_age_groups)
+        n_male_age_groups = len(male_distribution['PopulationGroups'][0])
         # Get age groups information male from csv file
         expected_male_age_group = np.append(male_input['Age (x)'].unique(), 100).tolist()
         self.assertListEqual(expected_male_age_group[1:], male_distribution['PopulationGroups'][0])
 
-        female_age_groups = female_distribution['NumPopulationGroups'][0]
-        self.assertEqual(len(female_distribution['PopulationGroups'][0]), female_age_groups)
+        n_female_age_groups = len(female_distribution['PopulationGroups'][0])
         # Get age groups information from female csv file
         expected_female_age_group = np.append(female_input['Age (x)'].unique(), 100).tolist()
         self.assertListEqual(expected_female_age_group[1:], female_distribution['PopulationGroups'][0])
 
         # Check Year
-        male_year_groups = male_distribution['NumPopulationGroups'][1]
-        self.assertEqual(len(male_distribution['PopulationGroups'][1]), male_year_groups)
+        n_male_year_groups = len(male_distribution['PopulationGroups'][1])
         # Get year groups information male from csv file
         expected_male_year_group = male_input['Ave_Year'].unique().tolist()
         # Up to year = predict_horizon
         expected_male_year_group = [x for x in expected_male_year_group if x < predict_horizon]
         self.assertListEqual(expected_male_year_group, male_distribution['PopulationGroups'][1])
 
-        female_year_groups = female_distribution['NumPopulationGroups'][1]
-        self.assertEqual(len(female_distribution['PopulationGroups'][1]), female_year_groups)
+        n_female_year_groups = len(female_distribution['PopulationGroups'][1])
         expected_female_year_group = expected_male_year_group
         self.assertListEqual(expected_female_year_group, female_distribution['PopulationGroups'][1])
 
@@ -1118,18 +1106,18 @@ class DemogTest(unittest.TestCase):
         self.assertEqual(female_distribution['ResultScaleFactor'], results_scale_factor)
 
         # Check result values array length
-        self.assertEqual(len(male_distribution['ResultValues']), male_age_groups)
+        self.assertEqual(len(male_distribution['ResultValues']), n_male_age_groups)
         for m_y in male_distribution['ResultValues']:
-            self.assertEqual(len(m_y), male_year_groups)
-        self.assertEqual(len(female_distribution['ResultValues']), female_age_groups)
+            self.assertEqual(len(m_y), n_male_year_groups)
+        self.assertEqual(len(female_distribution['ResultValues']), n_female_age_groups)
         for f_y in female_distribution['ResultValues']:
-            self.assertEqual(len(f_y), female_year_groups)
+            self.assertEqual(len(f_y), n_female_year_groups)
 
         # Check result values consistency with reference files
         male_reference = pd.read_csv(os.path.join(self.out_folder, "MaleTrue"))
         female_reference = pd.read_csv(os.path.join(self.out_folder, "FemaleTrue"))
-        for i in range(male_age_groups):
-            for j in range(male_year_groups):
+        for i in range(n_male_age_groups):
+            for j in range(n_male_year_groups):
                 male_mortality_rate = male_distribution['ResultValues'][i][j]
                 expected_male_mortality_rate = male_reference[male_reference['Age'] == expected_male_age_group[i + 1]][
                     str(expected_male_year_group[j])].iloc[0]
@@ -1214,13 +1202,13 @@ class DemogTest(unittest.TestCase):
         node_ids = [97, 99]
         demog.SetMortalityRate(mortality_rate, node_ids)
 
-        set_mortality_dist_97 = demog.get_node(97).individual_attributes.mortality_distribution.to_dict()
-        set_mortality_dist_99 = demog.get_node(99).individual_attributes.mortality_distribution.to_dict()
+        set_mortality_dist_97 = demog.get_node_by_id(node_id=97).individual_attributes.mortality_distribution.to_dict()
+        set_mortality_dist_99 = demog.get_node_by_id(node_id=99).individual_attributes.mortality_distribution.to_dict()
         from emod_api.demographics.DemographicsTemplates import CrudeRate
         expected_mortality_dist = DT._ConstantMortality(CrudeRate(mortality_rate).get_dtk_rate()).to_dict()
         self.assertDictEqual(set_mortality_dist_99, expected_mortality_dist)
         self.assertDictEqual(set_mortality_dist_97, expected_mortality_dist)
-        self.assertIsNone(demog.get_node(96).individual_attributes.mortality_distribution)
+        self.assertIsNone(demog.get_node_by_id(node_id=96).individual_attributes.mortality_distribution)
 
     def test_set_predefined_age_distribution(self):
         demog = Demographics.from_template_node()
@@ -1467,7 +1455,7 @@ class DemogTest(unittest.TestCase):
 
     def test_get_node_and_set_property(self):
         demog = Demographics.from_template_node(lat=0, lon=0, pop=100000, name=1, forced_id=1)
-        demog.get_node(1).birth_rate = 0.123
+        demog.get_node_by_id(node_id=1).birth_rate = 0.123
         self.assertEqual(demog.to_dict()['Nodes'][0]['NodeAttributes']['BirthRate'], 0.123)
 
     def test_setting_value_throws_exception_distribution_const(self):
@@ -1522,7 +1510,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         try:
             demog = Demographics.from_template_node()
             demog.SetMortalityOverTimeFromData(base_year=1950, data_csv=manifest.mortality_data_age_year_csv)
-            pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['NumPopulationGroups'])                               
+            pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['NumPopulationGroups'])
             pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['PopulationGroups'])
         except:
             self.fail("should have taken the arguments")           
@@ -1560,7 +1548,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
             demog = Demographics.from_template_node()
             demog.SetMortalityOverTimeFromData( data_csv=manifest.mortality_data_age_year_csv, base_year=1950, node_ids=[ 2 ] ) 
             pprint.pprint(demog.to_dict()['Defaults'])  # it should not reach this point.
-            
+
     def test_01_setmortalityovertimefromdata(self):
         # fn: SetMortalityOverTimeFromData
         # Test type: Functional Test
@@ -1573,8 +1561,8 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         demog.SetDefaultProperties()
         demog.SetMortalityOverTimeFromData(base_year=1991, data_csv=manifest.mortality_data_age_year_csv)
         
-        pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['NumPopulationGroups'])     
-        pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionMale']['NumPopulationGroups'])                               
+        pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['NumPopulationGroups'])
+        pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionMale']['NumPopulationGroups'])
         pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['PopulationGroups'])
         pprint.pprint(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionMale']['PopulationGroups'])
         self.assertEqual(len(demog.to_dict()['Defaults']['IndividualAttributes']['MortalityDistributionFemale']['NumPopulationGroups']), 2)

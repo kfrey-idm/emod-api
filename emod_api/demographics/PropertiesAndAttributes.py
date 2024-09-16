@@ -1,15 +1,25 @@
 from emod_api.demographics.Updateable import Updateable
 from typing import List
 
-
+# TODO: most of the documentation in this file consists of stand-in stubs. Needs to be filled in.
+#  https://github.com/InstituteforDiseaseModeling/emod-api/issues/695
 class IndividualProperty(Updateable):
     def __init__(self,
+                 property: str,
                  initial_distribution: List[float] = None,
-                 property=None,
-                 values: List[float] = None,
+                 values: List[str] = None,
                  transitions: List[float] = None,
-                 transmission_matrix: List[float] = None
-                 ):
+                 transmission_matrix: List[float] = None):
+        """
+        https://docs.idmod.org/projects/emod-generic/en/latest/model-properties.html
+
+        Args:
+            initial_distribution:
+            property:
+            values:
+            transitions:
+            transmission_matrix:
+        """
         super().__init__()
         self.initial_distribution = initial_distribution
         self.property = property
@@ -39,21 +49,74 @@ class IndividualProperty(Updateable):
             individual_property.update({"TransmissionMatrix": self.transmission_matrix})
         return individual_property
 
+    @classmethod
+    def from_dict(cls, ip_dict: dict) -> '__class__':
+        available_args = ['initial_distribution', 'property', 'values', 'transitions', 'transmission_matrix']
+        args = {key: ip_dict[key] for key in available_args if key in ip_dict}
+        return cls(**args)
+
+    def __eq__(self, other) -> bool:
+        return self.to_dict() == other.to_dict()
+
 
 class IndividualProperties(Updateable):
+
+    class DuplicateIndividualPropertyException(Exception):
+        pass
+
+    class NoSuchIndividualPropertyException(Exception):
+        pass
+
+    # TODO: this constructor call is WEIRD. it should take a list of IndividualProperties instead and remove
+    #  "if is None" checks on self.individual_properties (None should auto goes to [] in constructor)
+    #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/685
     def __init__(self, individual_property: IndividualProperty = None):
+        """
+        https://docs.idmod.org/projects/emod-generic/en/latest/model-properties.html
+
+        Args:
+            individual_property:
+        """
         super().__init__()
         self.individual_properties = [individual_property] if individual_property else None
 
-    def add(self, individual_property):
-        if not self.individual_properties:
+    def add(self, individual_property: IndividualProperty, overwrite=False) -> None:
+        if self.individual_properties is None:
             self.individual_properties = []
+
+        has_ip = self.has_individual_property(property_key=individual_property.property)
+        if has_ip:
+            if overwrite:
+                # remove existing then add
+                self.remove_individual_property(property_key=individual_property.property)
+            else:
+                msg = f"Property {individual_property.property} already present in IndividualProperties"
+                raise self.DuplicateIndividualPropertyException(msg)
         self.individual_properties.append(individual_property)
 
     def add_parameter(self, key, value):
         raise NotImplementedError("A parameter cannot be added to IndividualProperties.")
 
-    def to_dict(self) -> dict:
+    @property
+    def ip_by_name(self):
+        individual_properties = [] if self.individual_properties is None else self.individual_properties
+        return {ip.property: ip for ip in individual_properties}
+
+    def has_individual_property(self, property_key: str) -> bool:
+        return property_key in self.ip_by_name.keys()
+
+    def get_individual_property(self, property_key: str) -> IndividualProperty:
+        ip = self.ip_by_name.get(property_key, None)
+        if ip is None:
+            msg = f"No IndividualProperty exists with the property key: {property_key}"
+            raise self.NoSuchIndividualPropertyException(msg)
+        return ip
+
+    def remove_individual_property(self, property_key: str):
+        ips_to_keep = [ip for ip in self.individual_properties if ip.property != property_key]
+        self.individual_properties = ips_to_keep
+
+    def to_dict(self) -> List[dict]:
         individual_properties = []
         for ip in self.individual_properties:
             individual_properties.append(ip.to_dict())
@@ -74,6 +137,14 @@ class IndividualAttributes(Updateable):
                      distribution_values: List[float] = None,
                      result_scale_factor=None,
                      result_values=None):
+            """
+            https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#complex-distributions
+
+            Args:
+                distribution_values:
+                result_scale_factor:
+                result_values:
+            """
             super().__init__()
             self.distribution_values = distribution_values
             self.result_scale_factor = result_scale_factor
@@ -98,10 +169,32 @@ class IndividualAttributes(Updateable):
                      distribution_values=None,
                      result_scale_factor=None,
                      result_values=None):
+            """
+            https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#complex-distributions
+
+            Args:
+                distribution_values:
+                result_scale_factor:
+                result_values:
+            """
             super().__init__()
             self.distribution_values = distribution_values
             self.result_scale_factor = result_scale_factor
             self.result_values = result_values
+
+        @property
+        def num_dist_axes(self):
+            import warnings
+            warnings.warn(f"{__class__}: num_dist_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            return self._num_dist_axes
+
+        @num_dist_axes.setter
+        def num_dist_axes(self, value):
+            import warnings
+            warnings.warn(f"{__class__}: num_dist_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            self._num_dist_axes = value
 
         def to_dict(self) -> dict:
             age_distribution = {}
@@ -122,7 +215,7 @@ class IndividualAttributes(Updateable):
                 self.distribution_values = age_distribution.get("DistributionValues")
                 self.result_scale_factor = age_distribution.get("ResultScaleFactor")
                 self.result_values = age_distribution.get("ResultValues")
-                self.num_dist_axes = age_distribution.get("NumDistributionAxes")
+                self._num_dist_axes = age_distribution.get("NumDistributionAxes")
                 self.results_units = age_distribution.get("ResultUnits")
             return self
 
@@ -138,17 +231,71 @@ class IndividualAttributes(Updateable):
                      result_scale_factor=None,
                      result_units=None,
                      result_values=None):
+            """
+            https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#complex-distributions
+
+            Args:
+                axis_names:
+                axis_scale_factors:
+                axis_units:
+                population_groups:
+                result_scale_factor:
+                result_units:
+                result_values:
+            """
             super().__init__()
             self.axis_names = axis_names
             self.axis_scale_factors = axis_scale_factors
             self.axis_units = axis_units
-            self.num_distribution_axes = num_distribution_axes
-            self.num_population_axes = num_population_axes
-            self.num_population_groups = num_population_groups
+            self._num_distribution_axes = num_distribution_axes
+            self._num_population_axes = num_population_axes
+            self._num_population_groups = num_population_groups
             self.population_groups = population_groups
             self.result_scale_factor = result_scale_factor
             self.result_units = result_units
             self.result_values = result_values
+
+        @property
+        def num_distribution_axes(self):
+            import warnings
+            warnings.warn(f"{__class__}: num_distribution_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            return self._num_distribution_axes
+
+        @num_distribution_axes.setter
+        def num_distribution_axes(self, value):
+            import warnings
+            warnings.warn(f"{__class__}: num_distribution_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            self._num_distribution_axes = value
+
+        @property
+        def num_population_axes(self):
+            import warnings
+            warnings.warn(f"{__class__}: num_population_axes (NumPopulationAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            return self._num_population_axes
+
+        @num_population_axes.setter
+        def num_population_axes(self, value):
+            import warnings
+            warnings.warn(f"{__class__}: num_population_axes (NumPopulationAxes) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            self._num_population_axes = value
+
+        @property
+        def num_population_groups(self):
+            import warnings
+            warnings.warn(f"{__class__}: num_population_groups (NumPopulationGroups) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            return self._num_population_groups
+
+        @num_population_groups.setter
+        def num_population_groups(self, value):
+            import warnings
+            warnings.warn(f"{__class__}: num_population_groups (NumPopulationGroups) is not interpreted by EMOD and may be removed",
+                          DeprecationWarning, stacklevel=2)
+            self._num_population_groups = value
 
         def to_dict(self) -> dict:
             fertility_distribution = self.parameter_dict
@@ -162,11 +309,11 @@ class IndividualAttributes(Updateable):
             if self.axis_units is not None:
                 fertility_distribution.update({"AxisUnits": self.axis_units})
 
-            if self.num_distribution_axes is not None:
-                fertility_distribution.update({"NumDistributionAxes": self.num_distribution_axes})
+            if self._num_distribution_axes is not None:
+                fertility_distribution.update({"NumDistributionAxes": self._num_distribution_axes})
 
-            if self.num_population_groups is not None:
-                fertility_distribution.update({"NumPopulationGroups": self.num_population_groups})
+            if self._num_population_groups is not None:
+                fertility_distribution.update({"NumPopulationGroups": self._num_population_groups})
 
             if self.population_groups is not None:
                 fertility_distribution.update({"PopulationGroups": self.population_groups})
@@ -187,8 +334,8 @@ class IndividualAttributes(Updateable):
                 self.axis_names = fertility_distribution.get("AxisNames")
                 self.axis_scale_factors = fertility_distribution.get("AxisScaleFactors")
                 self.axis_units = fertility_distribution.get("AxisUnits")
-                self.num_distribution_axes = fertility_distribution.get("NumDistributionAxes")
-                self.num_population_groups = fertility_distribution.get("NumPopulationGroups")
+                self._num_distribution_axes = fertility_distribution.get("NumDistributionAxes")
+                self._num_population_groups = fertility_distribution.get("NumPopulationGroups")
                 self.population_groups = fertility_distribution.get("PopulationGroups")
                 self.result_scale_factor = fertility_distribution.get("ResultScaleFactor")
                 self.result_units = fertility_distribution.get("ResultUnits")
@@ -207,17 +354,77 @@ class IndividualAttributes(Updateable):
                      result_scale_factor=None,
                      result_units=None,
                      result_values=None):
+            """
+            https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#complex-distributions
+
+            Args:
+                axis_names:
+                axis_scale_factors:
+                axis_units:
+                population_groups:
+                result_scale_factor:
+                result_units:
+                result_values:
+            """
             super().__init__()
             self.axis_names = axis_names
             self.axis_scale_factors = axis_scale_factors
             self.axis_units = axis_units
-            self.num_distribution_axes = num_distribution_axes
-            self.num_population_axes = num_population_axes
-            self.num_population_groups = num_population_groups
+            self._num_distribution_axes = num_distribution_axes
+            self._num_population_axes = num_population_axes
+            self._num_population_groups = num_population_groups
             self.population_groups = population_groups
             self.result_scale_factor = result_scale_factor
             self.result_units = result_units
             self.result_values = result_values
+
+        @property
+        def num_distribution_axes(self):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_distribution_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            return self._num_distribution_axes
+
+        @num_distribution_axes.setter
+        def num_distribution_axes(self, value):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_distribution_axes (NumDistributionAxes) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            self._num_distribution_axes = value
+
+        @property
+        def num_population_axes(self):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_population_axes (NumPopulationAxes) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            return self._num_population_axes
+
+        @num_population_axes.setter
+        def num_population_axes(self, value):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_population_axes (NumPopulationAxes) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            self._num_population_axes = value
+
+        @property
+        def num_population_groups(self):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_population_groups (NumPopulationGroups) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            return self._num_population_groups
+
+        @num_population_groups.setter
+        def num_population_groups(self, value):
+            import warnings
+            warnings.warn(
+                f"{__class__}: num_population_groups (NumPopulationGroups) is not interpreted by EMOD and may be removed",
+                DeprecationWarning, stacklevel=2)
+            self._num_population_groups = value
 
         def to_dict(self) -> dict:
             mortality_distribution = self.parameter_dict
@@ -231,11 +438,11 @@ class IndividualAttributes(Updateable):
             if self.axis_units is not None:
                 mortality_distribution.update({"AxisUnits": self.axis_units})
 
-            if self.num_distribution_axes is not None:
-                mortality_distribution.update({"NumDistributionAxes": self.num_distribution_axes})
+            if self._num_distribution_axes is not None:
+                mortality_distribution.update({"NumDistributionAxes": self._num_distribution_axes})
 
-            if self.num_population_groups is not None:
-                mortality_distribution.update({"NumPopulationGroups": self.num_population_groups})
+            if self._num_population_groups is not None:
+                mortality_distribution.update({"NumPopulationGroups": self._num_population_groups})
 
             if self.population_groups is not None:
                 mortality_distribution.update({"PopulationGroups": self.population_groups})
@@ -258,14 +465,18 @@ class IndividualAttributes(Updateable):
             self.axis_names = mortality_distribution.get("AxisNames")
             self.axis_scale_factors = mortality_distribution.get("AxisScaleFactors")
             self.axis_units = mortality_distribution.get("AxisUnits")
-            self.num_distribution_axes = mortality_distribution.get("NumDistributionAxes")
-            self.num_population_groups = mortality_distribution.get("NumPopulationGroups")
+            self._num_distribution_axes = mortality_distribution.get("NumDistributionAxes")
+            self._num_population_groups = mortality_distribution.get("NumPopulationGroups")
             self.population_groups = mortality_distribution.get("PopulationGroups")
             self.result_scale_factor = mortality_distribution.get("ResultScaleFactor")
             self.result_units = mortality_distribution.get("ResultUnits")
             self.result_values = mortality_distribution.get("ResultValues")
             return self
 
+    # TODO: this is the constructor for IndividualAttributes of all things. It really should be up with the class
+    #  definition. Also, the various classes under IndividualAttributes should be moved to top level in this file
+    #  or in other files.
+    #  https://github.com/InstituteforDiseaseModeling/emod-api/issues/694
     def __init__(self,
                  age_distribution_flag=None,
                  age_distribution1=None,
@@ -289,6 +500,32 @@ class IndividualAttributes(Updateable):
                  mortality_distribution_female=None,
                  susceptibility_distribution=None
                  ):
+        """
+        https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#individual-attributes
+
+        Args:
+            age_distribution_flag:
+            age_distribution1:
+            age_distribution2:
+            age_distribution:
+            prevalence_distribution_flag:
+            prevalence_distribution1:
+            prevalence_distribution2:
+            immunity_distribution_flag:
+            immunity_distribution1:
+            immunity_distribution2:
+            risk_distribution_flag:
+            risk_distribution1:
+            risk_distribution2:
+            migration_heterogeneity_distribution_flag:
+            migration_heterogeneity_distribution1:
+            migration_heterogeneity_distribution2:
+            fertility_distribution:
+            mortality_distribution:
+            mortality_distribution_male:
+            mortality_distribution_female:
+            susceptibility_distribution:
+        """
         super().__init__()
         self.age_distribution_flag = age_distribution_flag
         self.age_distribution1 = age_distribution1
@@ -424,8 +661,29 @@ class NodeAttributes(Updateable):
                  larval_habitat_multiplier: List[float] = None,
                  initial_vectors_per_species=None,
                  infectivity_multiplier: float = None,
-                 extra_attributes: dict = None
-                 ):
+                 extra_attributes: dict = None):
+        """
+        https://docs.idmod.org/projects/emod-generic/en/latest/parameter-demographics.html#nodeattributes
+
+        Args:
+            airport:
+            altitude:
+            area:
+            birth_rate:
+            country:
+            growth_rate:
+            name:
+            latitude:
+            longitude:
+            metadata:
+            initial_population:
+            region:
+            seaport:
+            larval_habitat_multiplier:
+            initial_vectors_per_species:
+            infectivity_multiplier:
+            extra_attributes:
+        """
         super().__init__()
         self.airport = airport
         self.altitude = altitude

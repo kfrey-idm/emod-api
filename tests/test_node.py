@@ -15,7 +15,7 @@ class NodeTest(unittest.TestCase):
         self.assertFalse(individual_properties)
 
     def test_individual_properties_length_1(self):
-        individual_property = IndividualProperty(initial_distribution=123, values=456)
+        individual_property = IndividualProperty(property='deliciousness', initial_distribution=123, values=456)
         individual_properties = IndividualProperties(individual_property)
 
         self.assertEqual(len(individual_properties), 1)
@@ -23,8 +23,8 @@ class NodeTest(unittest.TestCase):
         self.assertDictEqual(individual_properties[0].to_dict(), individual_property.to_dict())
 
     def test_individual_properties_iter(self):
-        individual_property1 = IndividualProperty(initial_distribution=123, values=456)
-        individual_property2 = IndividualProperty(initial_distribution=123, values=456)
+        individual_property1 = IndividualProperty(property='something', initial_distribution=123, values=456)
+        individual_property2 = IndividualProperty(property='else', initial_distribution=123, values=456)
         individual_properties = IndividualProperties()
         individual_properties.add(individual_property1)
         individual_properties.add(individual_property2)
@@ -83,8 +83,8 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(individual_attributes.to_dict()["user_defined_2"], 2)
         self.assertNotIn("user_defined_2", individual_attributes_2.to_dict())
 
-        individual_properties = IndividualProperties(IndividualProperty())
-        individual_properties_2 = IndividualProperties(IndividualProperty())
+        individual_properties = IndividualProperties(IndividualProperty(property='cloudy'))
+        individual_properties_2 = IndividualProperties(IndividualProperty(property='White House'))
         individual_properties[0].add_parameter("user_defined_3", 3)
         self.assertEqual(individual_properties[0].to_dict()["user_defined_3"], 3)
         self.assertNotIn("user_defined_3", individual_properties_2.to_dict())
@@ -110,7 +110,7 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(node.to_dict()["NodeAttributes"]["InfectivityMultiplier"], infectivity_multiplier_val)
 
     def test_raise_error_add_parameter_to_individual_properties(self):
-        individual_properties = IndividualProperties(IndividualProperty())
+        individual_properties = IndividualProperties(IndividualProperty(property='color'))
         with self.assertRaises(NotImplementedError):
             individual_properties.add_parameter("My_Parameter", 123)
 

@@ -14,27 +14,17 @@ First, ensure the following prerequisites are met.
 * |Python_supp| (https://www.python.org/downloads/release)
 
 * A file that indicates the pip index-url:
+    
+    * For Windows, in C:\\Users\\Username\\pip\\pip.ini add the following::
 
-    .. container:: os-code-block
+        [global]
+        index-url = https://packages.idmod.org/api/pypi/pypi-production/simple
 
-        .. container:: choices
+    * For Linux, in $HOME/.config/pip/pip.conf add the following::
 
-            * Windows
-            * Linux
+        [global]
+        index-url = https://packages.idmod.org/api/pypi/pypi-production/simple
 
-        .. container:: windows
-
-            In C:\\Users\\Username\\pip\\pip.ini, containing the following::
-
-                [global]
-                index-url = https://packages.idmod.org/api/pypi/pypi-production/simple
-
-        .. container:: linux
-
-            In $HOME/.config/pip/pip.conf, containing the following::
-
-                [global]
-                index-url = https://packages.idmod.org/api/pypi/pypi-production/simple
 
 Installation instructions
 =========================
@@ -46,24 +36,13 @@ Installation instructions
 
 #.  Activate the virtual environment:
 
-    .. container:: os-code-block
+    * For Windows, enter the following::
 
-        .. container:: choices
+        v-emod-api\Scripts\activate
 
-            * Windows
-            * Linux
+    * For Linux, enter the following::
 
-        .. container:: windows
-
-            Enter the following::
-
-                v-emod-api\Scripts\activate
-
-        .. container:: linux
-
-            Enter the following::
-
-                source v-emod-api/bin/activate
+        source v-emod-api/bin/activate
 
 #.  Install |emod_api| packages::
 
