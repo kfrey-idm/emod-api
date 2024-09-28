@@ -88,7 +88,7 @@ Output
 `python3 tests/spatial_reports.py`  
 `python3 tests/weather_files.py`  
 
-### Disclaimer
+# Disclaimer
 
 The code in this repository was developed by IDM and other collaborators to support our joint research on flexible agent-based modeling.
  We've made it publicly available under the MIT License to provide others with a better understanding of our research and an opportunity to build upon it for 
