@@ -36,14 +36,14 @@ podTemplate(
         }
 		stage('Prepare') {
 			sh 'python --version'
-			sh 'python3.6 --version'
-			sh 'pip3.6 --version'
+			sh 'python3 --version'
+			sh 'pip3 --version'
 
-			sh 'python3.6 -m pip install --upgrade pip'
-			//sh 'python3.6 -m pip install --upgrade wheel'
-			sh "pip3.6 install wheel"
-			sh 'python3.6 -m pip install --upgrade setuptools'
-			sh 'pip3.6 freeze'
+			sh 'python3 -m pip install --upgrade pip'
+			//sh 'python3 -m pip install --upgrade wheel'
+			sh "pip3 install wheel"
+			sh 'python3-m pip install --upgrade setuptools'
+			sh 'pip3 freeze'
 		}
 		stage('Build') {
 			sh 'pwd'
@@ -55,20 +55,20 @@ podTemplate(
 			def curDate = sh(returnStdout: true, script: "date").trim()
             echo "The current date is ${curDate}"
             def wheelFile = sh(returnStdout: true, script: "find ./dist -name '*.whl'").toString().trim()
-			//def wheelFile = sh(returnStdout: true, script: "python3.6 ./.github/scripts/get_wheel_filename.py --package-file setup.py").toString().trim()
+			//def wheelFile = sh(returnStdout: true, script: "python3 ./.github/scripts/get_wheel_filename.py --package-file setup.py").toString().trim()
 			echo "This is the package file: ${wheelFile}"
-			sh "pip3.6 install $wheelFile"
-			sh "pip3.6 freeze"
+			sh "pip3 install $wheelFile"
+			sh "pip3 freeze"
 		}
         stage(' Unit Testing') {
             echo "Running Unit Tests"
             dir('tests') {
-                sh "pip3.6 install unittest-xml-reporting"
-                sh 'python3.6 -m xmlrunner discover'
+                sh "pip3 install unittest-xml-reporting"
+                sh 'python3 -m xmlrunner discover'
                 junit '*.xml'
             }
             dir('tests/unittests') {
-                    sh 'python3.6 -m xmlrunner discover'
+                    sh 'python3 -m xmlrunner discover'
                     junit '*.xml'
             }
         }
