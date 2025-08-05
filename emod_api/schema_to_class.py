@@ -193,7 +193,7 @@ def uses_old_waning(schema_path=None):
     return any(["WaningEffect" in k for k in waning_effects])
 
 
-def get_schema( schema_path=None ):
+def get_schema(schema_path=None):
     global schema_cache
     global _schema_path
 
@@ -202,7 +202,7 @@ def get_schema( schema_path=None ):
     if schema_path is None:
         schema_path = "schema.json"
 
-    if type(schema_path) is dict:
+    if isinstance(schema_path, dict):
         return schema_path
 
     if schema_cache is None or _schema_path != schema_path:
@@ -210,13 +210,11 @@ def get_schema( schema_path=None ):
             raise ValueError(f"ERROR: No file found at {schema_path}. "
                              f"A valid schema path needs to exist at the path specified.")
 
-        with open(schema_path) as file:
-            schema = json.load(file)
-            schema_cache = schema
+        with open(schema_path, 'r') as file:
+            schema_cache = json.load(file)
             _schema_path = schema_path
-    else:
-        schema = schema_cache
-    return schema
+
+    return schema_cache
 
 def get_class_with_defaults( classname, schema_path=None ):
     """
