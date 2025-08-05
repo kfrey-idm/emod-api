@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 schema_cache = None
 show_warnings = True
-
+_schema_path = None
 
 def disable_warnings():
     """
@@ -186,28 +186,34 @@ class ReadOnlyDict(OrderedDict):
 
 
 def uses_old_waning(schema_path=None):
-    global schema_cache
-    if schema_path is not None:
-        schema_cache = None
+    # global schema_cache
+    # if schema_path is not None:
+    #     schema_cache = None
     waning_effects = get_schema(schema_path)["idmTypes"]["idmType:WaningEffect"].keys()
     return any(["WaningEffect" in k for k in waning_effects])
 
 
 def get_schema( schema_path=None ):
     global schema_cache
-    if schema_cache is None:
-        if schema_path is None:
-            schema_path = "schema.json" 
-        if type(schema_path) is not dict:
-            if not os.path.exists(schema_path):
-                raise ValueError(f"ERROR: No file found at {schema_path}. "
-                                 f"A valid schema path needs to exist at the path specified.")
+    global _schema_path
 
-            with open(schema_path) as file:
-                schema = json.load(file)
-                schema_cache = schema
-        else:
-            schema = schema_path
+    # print("schema_path: ", schema_path)
+
+    if schema_path is None:
+        schema_path = "schema.json"
+
+    if type(schema_path) is dict:
+        return schema_path
+
+    if schema_cache is None or _schema_path != schema_path:
+        if not os.path.exists(schema_path):
+            raise ValueError(f"ERROR: No file found at {schema_path}. "
+                             f"A valid schema path needs to exist at the path specified.")
+
+        with open(schema_path) as file:
+            schema = json.load(file)
+            schema_cache = schema
+            _schema_path = schema_path
     else:
         schema = schema_cache
     return schema
@@ -229,6 +235,9 @@ def get_class_with_defaults( classname, schema_path=None ):
                 idmtype = schema[key]["type"]
                 default = get_class_with_defaults( idmtype, types_schema )
         except Exception as ex:
+            print("key: ", key)
+            print("types_schema: ", types_schema)
+            print("schema: ", schema)
             raise ValueError(f"ERROR for key '{key}': {ex}")
         return default
 
