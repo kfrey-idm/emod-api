@@ -23,35 +23,28 @@ jobs:
       matrix:
         python-version: [ '3.9' ]
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Config github user
-        run: |
-          git config --global user.email "idm_bamboo_user@idmod.org"
-          git config --global user.name "BambooUser-IDM"
-      - uses: actions/setup-python@master
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
-      - name: install snappy
-        run: sudo apt-get install libsnappy-dev
-        shell: bash
-      - id: build-install
-        name: Build and install package
-        uses: ./.github/actions/build-install-package
-        with:
-          pyproject_file: 'pyproject.toml'
-      - name: run unit tests
+      - name: Install snappy
         run: |
-          pip install -r requirements.txt
+          sudo apt-get install libsnappy-dev
+        shell: bash
+      - name: Build and install package
+        uses: ./.github/actions/build-install-package
+      - name: Install test requirements
+        run: |
+          pip install .[tests]
+      - name: Run unit tests
+        run: |
           python -m unittest discover .
         working-directory: ./tests
       - name: Push version bump
         if: success()
-        run: git push
-      - name: twine upload
+        run: |
+          git push
+      - name: Twine upload to IDM Artifactory staging
         if: success()
-        run: twine upload --verbose --repository-url https://packages.idmod.org/api/pypi/idm-pypi-staging/ --username ${{ secrets.STAGING_ARTIFACTORY_USERNAME }} --password ${{ secrets.STAGING_ARTIFACTORY_PASSWORD }} dist/*
-        working-directory: ./
+        run: |
+          twine upload --verbose --repository-url https://packages.idmod.org/api/pypi/idm-pypi-staging/ --username ${{ secrets.STAGING_ARTIFACTORY_USERNAME }} --password ${{ secrets.STAGING_ARTIFACTORY_PASSWORD }} dist/*

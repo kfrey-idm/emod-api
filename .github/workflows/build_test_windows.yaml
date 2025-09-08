@@ -19,28 +19,20 @@ jobs:
     env:
         TEST_LEVEL: 1
     strategy:
-      max-parallel: 1
+      max-parallel: 2
       matrix:
-        python-version: [ '3.9' ]
+        python-version: [ '3.9', '3.10' ]
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Config github user
-        run: |
-          git config --global user.email "idm_bamboo_user@idmod.org"
-          git config --global user.name "BambooUser-IDM"
-      - uses: actions/setup-python@master
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
       - name: Build and install package
         uses: ./.github/actions/build-install-package
-        with:
-          pyproject_file: 'pyproject.toml'
-      - name: run unit tests
+      - name: Install test requirements
         run: |
-          pip install -r requirements.txt
+          pip install .[tests]
+      - name: Run unit tests
+        run: |
           python -m unittest discover .
         working-directory: ./tests
