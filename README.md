@@ -1,10 +1,8 @@
 # emod-api
-Python library/utilities/tools for interacting with EMOD input and output files
 
-Developer note: Any .py file in emod_api will be included in the package.
-
-[![Package and test on Ubuntu](https://github.com/EMOD-Hub/emod-api/actions/workflows/build_test_ubuntu.yaml/badge.svg)](https://github.com/EMOD-Hub/emod-api/actions/workflows/build_test_ubuntu.yaml)
-[![Package and test on windows](https://github.com/EMOD-Hub/emod-api/actions/workflows/build_test_windows.yaml/badge.svg)](https://github.com/EMOD-Hub/emod-api/actions/workflows/build_test_windows.yaml)
+[![Run tests](https://github.com/EMOD-Hub/emod-api/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://github.com/EMOD-Hub/emod-api/actions/workflows/run-tests.yml)
+[![Lint](https://github.com/EMOD-Hub/emod-api/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/EMOD-Hub/emod-api/actions/workflows/lint.yml)
+[![Test and deploy to staging](https://github.com/EMOD-Hub/emod-api/actions/workflows/test_and_publish_package_to_staging.yml/badge.svg?branch=main)](https://github.com/EMOD-Hub/emod-api/actions/workflows/test_and_publish_package_to_staging.yml)
 
 ## Documentation
 
@@ -13,14 +11,9 @@ Documentation available at https://docs.idmod.org/projects/emod-api/en/latest/.
 To build the documentation locally, do the following:
 
 1. Create and activate a venv.
-2. Navigate to the root directory of the repo and enter the following
-
+2. Navigate to the root directory of the repo.
     ```
-    pip install -r requirements.txt
-    cd docs
-    pip install -r requirements.txt
-    cd ..
-    pip install -e .
+    python -mpip install .[docs]
     ```
 
 ## Dependencies
@@ -30,7 +23,6 @@ To build the documentation locally, do the following:
 emod-api can use Snappy [de]compression (python-snappy) as necessary if it is installed which requires libdev-snappy (Debian/Ubuntu) or snappy-devel (RedHat/CentOS) on Linux.
 
 Ubuntu: ```[sudo] apt install libdev-snappy```
-
 CentOS: ```[sudo] yum install snappy-devel``` (not yet tested)
 
 ## User Stories
@@ -51,20 +43,10 @@ Output
 
 ## Dev Tips
 
-- To build package: `python setup.py build`
-
-- To build wheel (.whl): `python setup.py bdist_wheel`
-
-- To import package, you can either:
-  - Set symlink to built module in build subdirectory
-  - do python setup.py install
-  - do python setup.py develop
+- To build package: `python -m build --wheel`
 
 - To install package (fill in actual version number in filename):  
-`    pip install dist/emod_api...whl`
-
-- To update the installed package (fill in actual version number in filename):  
-`    pip install --upgrade dist/emod_api...whl`
+    `python -m pip install dist/emod_api...whl`
 
 ## Capability Wishlist Based on Known Use Cases rather than Systematic Coverage
 
