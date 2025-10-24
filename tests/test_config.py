@@ -5,20 +5,7 @@ import json
 from emod_api.config import default_from_schema_no_validation as dfs
 from emod_api.config import from_overrides
 import emod_api.schema_to_class as s2c
-import manifest
-
-
-def delete_existing_file(file):
-    if os.path.isfile(file):
-        print(f'\tremove existing {file}.')
-        os.remove(file)
-
-
-def create_folder(folder_path):
-    if folder_path:
-        if not os.path.isdir(folder_path):
-            print(f"\t{folder_path} doesn't exist, creating {folder_path}.")
-            os.mkdir(folder_path)
+from tests import manifest
 
 
 def get_param_from_po(po_filename):
@@ -51,34 +38,29 @@ def get_lowest_level_po(po, new_po=None):
         raise ValueError('po must be a dictionary.')
 
 
-current_directory = os.path.dirname(os.path.realpath(__file__))
-
-
 class ConfigTest(unittest.TestCase):
-    output_folder = os.path.join(current_directory, 'data', 'config')
+    output_folder = manifest.output_folder
     output_filename = None
 
     def setUp(self) -> None:
         print(f"\n{self._testMethodName} started...")
-        create_folder(self.output_folder)
+        manifest.create_folder(self.output_folder)
 
     def tearDown(self) -> None:
         pass
 
     def test_3_default_from_schema(self):
-        s2c.schema_cache = None
-        self.output_file = "default_config.json"
-        delete_existing_file(self.output_file)
+        self.output_file = os.path.join(manifest.output_folder, "default_config.json")
+        manifest.delete_existing_file(self.output_file)
         schema_name = manifest.generic_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=self.output_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
         with open(self.output_file, 'r') as config_file:
             c = json.load(config_file)
         sim_type = c['parameters']['Simulation_Type']
         self.assertEqual(sim_type, 'GENERIC_SIM')
 
-        self.compare_config_with_schema(config_file=self.output_file,
-                                        schema_file=schema_name)
+        self.compare_config_with_schema(config_file=self.output_file, schema_file=schema_name)
 
     def compare_config_with_schema(self, config_file, schema_file):
         with open(config_file, 'r') as c_file:
@@ -107,7 +89,7 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue(found_key, msg=f'{key} is not in {schema_file}.')
 
     def test_4_default_as_rod(self):
-        config_file = os.path.join(self.output_folder, "input_default_config.json")
+        config_file = os.path.join(manifest.config_folder, "input_default_config.json")
         config_rod = dfs.load_default_config_as_rod(config_file)
         self.assertTrue(isinstance(config_rod, s2c.ReadOnlyDict))
         with open(config_file, 'r') as config_ori_file:
@@ -126,13 +108,13 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Default_Geography_Torus_Size = 10
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_1.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -156,13 +138,13 @@ class ConfigTest(unittest.TestCase):
             print("Setting params.")
             config.parameters.Base_Infectivity_Exponential = 0.5
             return config
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.generic_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_2.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -183,13 +165,13 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Incubation_Period_Constant = 2
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_3.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -209,13 +191,13 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Infectious_Period_Gaussian_Std_Dev = 1
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_4.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -243,14 +225,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Climate_Model = 'CLIMATE_BY_DATA'
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_5.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('Climate_Model' in str(context.exception), msg=f'got exception: {context.exception}.')
 
@@ -263,14 +245,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Falciparum_MSP_Variants = 200
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_6.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('Falciparum_MSP_Variants' in str(context.exception), msg=f'got exception: {context.exception}.')
 
@@ -283,14 +265,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Incubation_Period_Constant = ''
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_7.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('float' in str(context.exception), msg=f'got exception: {context.exception}.')
 
@@ -303,14 +285,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Incubation_Period_Distribution = 'test'
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_8.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('Incubation_Period_Distribution' in str(context.exception),
                         msg=f'got exception: {context.exception}.')
@@ -326,14 +308,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Base_Infectivity_Exponential = -2
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_9.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('Base_Infectivity_Exponential' in str(context.exception),
                         msg=f'got exception: {context.exception}.')
@@ -348,14 +330,14 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Base_Infectivity_Distribution = "EXPONENTIAL_DISTRIBUTION"
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_10.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
 
         self.assertTrue('Base_Infectivity_Constant' in str(context.exception),
                         msg=f'got exception: {context.exception}.')
@@ -371,10 +353,10 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Minimum_End_Time = 100
             config.parameters.Simulation_Duration = 10
             return config
-        config_file = "default_config.json" # this is a hard coded value
+        config_file = "default_config.json"  # this is a hard coded value
         self.output_filename = "output_config_from_default_and_params_11.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         with self.assertRaises(ValueError) as context:
             dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
 
@@ -391,13 +373,13 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Simulation_Duration = 10
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_12.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -413,13 +395,13 @@ class ConfigTest(unittest.TestCase):
         test for https://github.com/InstituteforDiseaseModeling/emodpy/issues/208
 
         """
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_13.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, None, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, None, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
     def test_5_config_from_default_and_params_14(self):
@@ -434,13 +416,13 @@ class ConfigTest(unittest.TestCase):
             config.parameters.Enable_Disease_Mortality = 1
             return config
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         schema_name = manifest.common_schema_path
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
         self.output_filename = "output_config_from_default_and_params_14.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
+        manifest.delete_existing_file(self.output_file)
+        dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
         self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
 
         # Test the depends-on feature
@@ -472,57 +454,54 @@ class ConfigTest(unittest.TestCase):
 
         self.output_filename = "output_malaria_config_2.json"
         self.output_file = os.path.join(self.output_folder, self.output_filename)
-        delete_existing_file(self.output_file)
+        manifest.delete_existing_file(self.output_file)
         schema_name = manifest.common_schema_path
 
-        config_file = "default_config.json"
+        output_file01 = os.path.join(manifest.output_folder, "default_config.json")
         model = "VECTOR_SIM"
 
-        dfs.get_default_config_from_schema(schema_name, output_filename=config_file)  # schema -> default_config.json
+        dfs.get_default_config_from_schema(schema_name, output_filename=output_file01)
 
-        with open(config_file, 'r') as config_file_output:
+        with open(output_file01, 'r') as config_file_output:
             config = json.load(config_file_output)
             config['parameters']['Simulation_Type'] = model
 
-        with open(config_file, 'w') as config_file_output:
+        with open(output_file01, 'w') as config_file_output:
             json.dump(config, config_file_output, sort_keys=True)
 
         with self.assertRaises(Exception) as context:
-            dfs.write_config_from_default_and_params(config_file, set_param_fn, self.output_file)
-            delete_existing_file(self.output_file)
+            dfs.write_config_from_default_and_params(output_file01, set_param_fn, self.output_file)
+            manifest.delete_existing_file(self.output_file)
 
-        delete_existing_file(config_file)
+        manifest.delete_existing_file(output_file01)
         self.assertTrue('Simulation_Type' in str(context.exception),
                         msg=f'got exception: {context.exception}.')
 
     def test_6_config_from_nested_po(self):
-        self.output_filename = "output_config_from_nested_po.json"
-        po_filename = 'input_nested_param_overrides.json'
-        self.config_from_po_test(self.output_folder, po_filename)
+        self.output_filename = os.path.join(manifest.output_folder, "output_config_from_nested_po.json")
+        self.input_filename = os.path.join(manifest.config_folder, "input_nested_param_overrides.json")
+        self.config_from_po_test()
 
     def test_7_config_from_po(self):
-        self.output_filename = "output_config_from_po.json"
-        po_filename = 'input_param_overrides.json'
-        self.config_from_po_test(self.output_folder, po_filename)
+        self.output_filename = os.path.join(manifest.output_folder, "output_config_from_po.json")
+        self.input_filename = os.path.join(manifest.config_folder, "input_param_overrides.json")
+        self.config_from_po_test()
 
-    def config_from_po_test(self, folder, po_filename):
-        self.output_file = os.path.join(folder, self.output_filename)
-        delete_existing_file(self.output_file)
-        from_overrides.flattenConfig(configjson_path=os.path.join(folder, po_filename),
-                                     new_config_name=self.output_filename)
-        self.assertTrue(os.path.isfile(self.output_file), msg=f"f{self.output_file} doesn't exist.")
+    def config_from_po_test(self):
+        manifest.delete_existing_file(self.output_filename)
+        from_overrides.flattenConfig(configjson_path=self.input_filename, new_config_name=self.output_filename, use_full_out_path=True)
+        self.assertTrue(os.path.isfile(self.output_filename), msg=f"f{self.output_filename} doesn't exist.")
 
-        po, default = get_param_from_po(os.path.join(folder, po_filename))
+        po, default = get_param_from_po(self.input_filename)
         po = get_lowest_level_po(po)
 
-        with open(self.output_file, 'r') as config_file:
+        with open(self.output_filename, 'r') as config_file:
             config = json.load(config_file)['parameters']
 
         self.compare_config_with_po(config, po, default)
 
     def test_8_idtmType_schema(self):
         # TODO: Need to update this to more recent schema (doesn't include all types in newest schema)
-        s2c.schema_cache = None
         schema_path = manifest.malaria_schema_path
         mytypes = [
             "idmType:Action",
@@ -530,25 +509,25 @@ class ConfigTest(unittest.TestCase):
             "idmType:AgeRange",
             "idmType:AlleleComboProbabilityConfig",
             "idmType:AlleleDriven",
-            "idmType:GeneToTraitModifierConfig", 
-            "idmType:IncidenceCounter", 
-            "idmType:IncidenceCounterSurveillance", 
-            "idmType:Insecticide", 
+            "idmType:GeneToTraitModifierConfig",
+            "idmType:IncidenceCounter",
+            "idmType:IncidenceCounterSurveillance",
+            "idmType:Insecticide",
             "idmType:InsecticideWaningEffect_RK",
             "idmType:InsecticideWaningEffect_RBK",
             "idmType:InsecticideWaningEffect_K",
-            "idmType:InterpolatedValueMap", 
-            # "idmType:LarvalHabitatMultiplier", # removed by DtkTrunk #4413
+            "idmType:InterpolatedValueMap",
+            # "idmType:LarvalHabitatMultiplier",  # removed by DtkTrunk #4413
             "idmType:LarvalHabitatMultiplierSpec",
             "idmType:NodeIdAndCoverage",
             # "idmType:NodeListConfig", # Produces error
-            "idmType:NodePropertyRestrictions", 
+            "idmType:NodePropertyRestrictions",
             "idmType:PropertyRestrictions",
-            "idmType:RVG_AlleleCombo", 
-            "idmType:Responder", 
-            "idmType:ResponderSurveillance", 
+            "idmType:RVG_AlleleCombo",
+            "idmType:Responder",
+            "idmType:ResponderSurveillance",
             "idmType:TargetedDistribution",
-            "idmType:VectorGene", 
+            "idmType:VectorGene",
             "idmType:VectorGeneDriver",
             "idmType:VectorSpeciesParameters",
             "idmType:WaningConfigList",
@@ -560,7 +539,7 @@ class ConfigTest(unittest.TestCase):
             schema_json = json.load(fid01)
 
         for idmtype in mytypes:
-            type_dict = s2c.get_class_with_defaults( idmtype, schema_json=schema_json ) # checking for error
+            s2c.get_class_with_defaults(idmtype, schema_json=schema_json)  # checking for error
 
     def compare_config_with_po(self, config, po, default):
         for key, value in config.items():
@@ -594,8 +573,6 @@ class ReadOnlyDictTest(unittest.TestCase):
         with self.assertRaises(KeyError) as context:
             coordinator.Non_Existing_Parameter = None
         self.assertTrue("'Non_Existing_Parameter' not found in this object." in str(context.exception))
-
-
 
 
 if __name__ == '__main__':

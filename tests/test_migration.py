@@ -1,5 +1,3 @@
-#! /usr/bin/env python3
-
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
@@ -12,14 +10,11 @@ from pathlib import Path
 from platform import system
 from tempfile import mkstemp
 import unittest
-from sys import platform
 from emod_api.migration.migration import Migration, from_file, from_params, from_demog_and_param_gravity, to_csv, examine_file, from_csv
 import pandas as pd
 import io
 from contextlib import redirect_stdout
-import manifest
-
-CWD = Path(manifest.current_directory)
+from tests import manifest
 
 
 class MigrationTests(unittest.TestCase):
@@ -32,21 +27,9 @@ class MigrationTests(unittest.TestCase):
     def setUpClass(cls):
 
         cls.user = environ["USERNAME"] if system() == "Windows" else environ["USER"]
-        filename = CWD / "data" / "migration" / "Kenya_Regional_Migration_from_Census.bin"
+        filename = os.path.join(manifest.migration_folder, "Kenya_Regional_Migration_from_Census.bin")
         cls.kenya_regional_migration = from_file(filename)
         cls.guinea_pig = Migration()
-
-        return
-
-    def setUp(self):
-        return
-
-    def tearDown(self):
-        return
-
-    @classmethod
-    def tearDownClass(cls):
-        return
 
     def test_defaults(self):
         """
@@ -379,7 +362,7 @@ class MigrationTests(unittest.TestCase):
     def test_nodes_property(self):
         """Nodes property should return sorted list of all node IDs."""
         migration = self._three_square()
-        self.assertListEqual(migration.Nodes, list(range(1,10)))
+        self.assertListEqual(migration.Nodes, list(range(1, 10)))
         return
 
     def test_age_dependent_indexing_raises(self):
@@ -528,14 +511,13 @@ class MigrationTests(unittest.TestCase):
         return
 
     def test_to_csv(self):
-        filename = CWD / "data/migration/Seattle_30arcsec_local_migration.bin"
-        output = CWD / "data/migration/seattle_csv.csv"
+        filename = os.path.join(manifest.migration_folder, "Seattle_30arcsec_local_migration.bin")
 
         f = io.StringIO()
         with redirect_stdout(f):
             to_csv(filename)
         out = f.getvalue()
-        
+
         data = io.StringIO(out)
         data_frame = pd.read_csv(data, sep=",")
         self.assertEqual(len(data_frame), 515)
@@ -544,17 +526,17 @@ class MigrationTests(unittest.TestCase):
         self.assertFalse(data_frame.isnull().values.any())
 
     def test_examine_file(self):
-        filename = CWD / "data/migration/Seattle_30arcsec_local_migration.bin"
-        output = CWD / "data/migration/seattle_csv.csv"
+        filename = os.path.join(manifest.migration_folder, "Seattle_30arcsec_local_migration.bin")
+        output = os.path.join(manifest.output_folder, "seattle_csv.csv")
 
         expected_output = ["Author:", "DatavalueCount:", "DateCreated:", "GenderDataType:", "IdReference:",
-                            "InterpolationType:", "MigrationType:", "NodeCount:","NodeOffsets:", "Tool:","Nodes:"]
+                           "InterpolationType:", "MigrationType:", "NodeCount:", "NodeOffsets:", "Tool:", "Nodes:"]
 
         f = io.StringIO()
         with redirect_stdout(f):
             examine_file(filename)
         output = f.getvalue()
-        
+
         for expected in expected_output:
             self.assertTrue(expected in output)
 
@@ -580,21 +562,21 @@ class MigrationTests(unittest.TestCase):
         # Create SIZExSIZE grid migration data
         SIZE = 5
         migration = Migration()
-        for source in range(0, SIZE*SIZE):
+        for source in range(0, SIZE * SIZE):
             source_x = source % SIZE
             source_y = source // SIZE
-            for destination in range(0, SIZE*SIZE):
+            for destination in range(0, SIZE * SIZE):
                 if destination == source:
                     continue
                 destination_x = destination % SIZE
                 destination_y = destination // SIZE
                 distance = abs(destination_x - source_x) + abs(destination_y - source_y)   # Manhattan distance
                 rate = 0.1 / distance
-                migration[source+1][destination+1] = rate   # IDs go from 1..(SIZE*SIZE)
+                migration[source + 1][destination + 1] = rate   # IDs go from 1..(SIZE*SIZE)
 
         # Ensure setup
         for node in migration.Nodes:
-            self.assertTrue(len(migration[node]) == (SIZE*SIZE-1))  # Nodes have no entry for self
+            self.assertTrue(len(migration[node]) == (SIZE * SIZE - 1))  # Nodes have no entry for self
 
         LIMIT = 3
         with self._temp_filename() as (filename, metafile):
@@ -682,7 +664,7 @@ class MigrationTests(unittest.TestCase):
 
     def test_from_file(self):
         """Test happy path for from_file()."""
-        local = from_file(CWD / "data" / "migration" / "Seattle_30arcsec_local_migration.bin")
+        local = from_file(os.path.join(manifest.migration_folder, "Seattle_30arcsec_local_migration.bin"))
         self.assertEqual(local.Author, "jsteinkraus")
         self.assertEqual(local.DateCreated, datetime(year=2011, month=9, day=26, hour=9, minute=59, second=35))
         self.assertEqual(local.DatavalueCount, 8)
@@ -691,7 +673,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(local.Tool, "createmigrationheader.py")
         self.assertEqual(local.MigrationType, 1)
 
-        regional = from_file(CWD / "data" / "migration" / "Seattle_30arcsec_regional_migration.bin")
+        regional = from_file(os.path.join(manifest.migration_folder, "Seattle_30arcsec_regional_migration.bin"))
         self.assertEqual(regional.Author, "jsteinkraus")
         self.assertEqual(regional.DateCreated, datetime(year=2011, month=9, day=26, hour=9, minute=59, second=35))
         self.assertEqual(regional.DatavalueCount, 30)
@@ -699,9 +681,6 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(regional.NodeCount, 124)
         self.assertEqual(regional.Tool, "createmigrationheader.py")
         self.assertEqual(regional.MigrationType, 3)
-
-        # tested in most test_get_xxx() functions above
-        # migration = Migration.from_file(CWD / "data" / "migration" / "Kenya_Regional_Migration_from_Census.bin"))
 
         return
 
@@ -726,12 +705,10 @@ class MigrationTests(unittest.TestCase):
 
         return
 
-
     # miscellaneous
     def test_from_params(self):
-
         migration = from_params(pop=1e6, num_nodes=80, mig_factor=1.0, frac_rural=0.2,
-                                   id_ref="from_params_test", migration_type=Migration.REGIONAL)
+                                id_ref="from_params_test", migration_type=Migration.REGIONAL)
         self.assertEqual(migration.NodeCount, 80)
         self.assertEqual(migration.DatavalueCount, 30)
         self.assertEqual(migration.IdReference, "from_params_test")
@@ -740,7 +717,7 @@ class MigrationTests(unittest.TestCase):
         return
 
     def test_from_demog_and_param_gravity(self):
-        demographics_file = CWD / 'data' / 'demographics' / 'Seattle_30arcsec_demographics.json'
+        demographics_file = os.path.join(manifest.demo_folder, 'Seattle_30arcsec_demographics.json')
 
         migration = from_demog_and_param_gravity(demographics_file, gravity_params=[0.1, 0.2, 0.3, 0.4],
                                                  id_ref='from_demog_and_param_gravity_test',
@@ -769,18 +746,18 @@ class MigrationTests(unittest.TestCase):
             return deg * (math.pi / 180)
 
         def verify_distance(migration_rate_list, node_locations):
-            for l in migration_rate_list[1:-1]:
-                l = l.split(',')
-                distance = 1 / float(l[-1])
-                src = int(l[0])
-                des = int(l[1])
+            for rate_val in migration_rate_list[1:-1]:
+                rate_val = rate_val.split(',')
+                distance = 1 / float(rate_val[-1])
+                src = int(rate_val[0])
+                des = int(rate_val[1])
                 lat1, lon1 = node_locations[src - 1]
                 lat2, lon2 = node_locations[des - 1]
                 calculated_distance = get_distance(lat1, lon1, lat2, lon2)
                 self.assertAlmostEqual(distance, calculated_distance, delta=2)  # km
 
         id_ref = 'from_demog_and_param_gravity_distance'
-        demographics_file = CWD / 'data' / 'demographics' / 'gravity_webservice_vs_local_distance_only.json'
+        demographics_file = os.path.join(manifest.demo_folder, 'gravity_webservice_vs_local_distance_only.json')
         locations = [[0, 0],
                      [0, 1],
                      [0, 2],
@@ -809,11 +786,7 @@ class MigrationTests(unittest.TestCase):
         migration_local = from_demog_and_param_gravity(demographics_file, gravity_params=[1, 1, 1, -1],
                                                        id_ref=id_ref, migration_type=Migration.REGIONAL)
 
-        migration_local_file = CWD / 'data' / 'migration' / 'gravity_distance.bin'
-
-        if migration_local_file.is_file():
-            migration_local_file.unlink()
-
+        migration_local_file = Path(os.path.join(manifest.output_folder, 'gravity_distance.bin'))
         migration_local.to_file(migration_local_file)
 
         f = io.StringIO()
@@ -824,37 +797,30 @@ class MigrationTests(unittest.TestCase):
         verify_distance(migration_rate, locations)
 
     def test_from_demog_and_param_gravity_with_reference(self):
-        demographics_file = CWD / 'data' / 'demographics' / 'Seattle_30arcsec_demographics.json'
+        demographics_file = os.path.join(manifest.demo_folder, 'Seattle_30arcsec_demographics.json')
 
         migration = from_demog_and_param_gravity(demographics_file, gravity_params=[0.1, 0.2, 0.3, 0.4],
                                                  id_ref='from_demog_and_param_gravity_test',
                                                  migration_type=Migration.LOCAL)
 
-        migration_file = CWD / 'data' / 'migration' / 'test_from_demog_and_param_gravity_with_reference.bin'
-        if migration_file.is_file():
-            migration_file.unlink()
+        migration_file = Path(os.path.join(manifest.output_folder, 'test_from_demog_and_param_gravity_with_reference.bin'))
         migration.to_file(migration_file)
 
-        reference_file = CWD / 'data' / 'migration' / 'migration_gravity_model_reference.bin'
-
+        reference_file = Path(os.path.join(manifest.migration_folder, 'migration_gravity_model_reference.bin'))
         self.compare_migration_file_to_reference(migration_file, reference_file, exact_compare=False)
 
     def test_from_csv(self):
-        if Path("test_migration.bin").exists():
-            Path("test_migration.bin").unlink()
-
-        if Path("test_migration.csv").exists():
-            Path("test_migration.csv").unlink()
-
         temp = {'source': [1, 2, 5],
                 'destination': [2, 3, 4],
                 'rate': [0.1, 0.2, 0.3]}
-        csv_file = Path("test_migration.csv")
-        pd.DataFrame.from_dict(temp).to_csv(csv_file, index=False)
 
+        csv_file = Path(os.path.join(manifest.output_folder, "test_migration.csv"))
+        pd.DataFrame.from_dict(temp).to_csv(csv_file, index=False)
         migration = from_csv(csv_file, id_ref="testing")
-        migration.to_file("test_migration.bin")
-        migration_from_bin = from_file("test_migration.bin")
+
+        migration_file = os.path.join(manifest.output_folder, "test_migration.bin")
+        migration.to_file(migration_file)
+        migration_from_bin = from_file(migration_file)
 
         for source, destination, rate in zip(temp['source'], temp['destination'], temp['rate']):
             self.assertEqual(migration[source][destination], rate)
@@ -862,7 +828,7 @@ class MigrationTests(unittest.TestCase):
 
     def test_from_csv_empty_file(self):
         with self.assertRaises(AssertionError):
-            from_csv(Path(CWD, "data", "migration", "test_migration_without_content.csv"), id_ref="testing")
+            from_csv(Path(os.path.join(manifest.migration_folder, "test_migration_without_content.csv")), id_ref="testing")
 
     def compare_migration_file_to_reference(self, migration_file, migration_reference_file, exact_compare=True):
         self.assertTrue(migration_file.is_file())
