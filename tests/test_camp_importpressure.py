@@ -15,6 +15,7 @@ class ImportPressureTest(unittest.TestCase):
         camp.set_schema(manifest.malaria_schema_path)
         ip.schema_path = camp.schema_path
         cls.output_folder = os.path.join(manifest.output_folder, 'import_pressure')
+        manifest.create_folder(cls.output_folder)
 
     def tearDown(self) -> None:
         camp.set_schema(manifest.malaria_schema_path)

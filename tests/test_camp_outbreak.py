@@ -14,6 +14,7 @@ class OutbreakTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         camp.set_schema(manifest.malaria_schema_path)
         cls.output_folder = os.path.join(manifest.output_folder, 'outbreak')
+        manifest.create_folder(cls.output_folder)
 
     def tearDown(self) -> None:
         camp.set_schema(manifest.malaria_schema_path)
