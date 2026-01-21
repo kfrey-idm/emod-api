@@ -6,9 +6,7 @@ import os
 import pathlib
 import tempfile
 from emod_api.spatialreports.spatial import SpatialReport, SpatialNode
-
-WORKING_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-
+from tests import manifest
 
 class TestSpatialNode(unittest.TestCase):
     def test_ctor(self):
@@ -110,15 +108,9 @@ class TestSpatial(unittest.TestCase):
 
     def test_fromFile(self):
 
-        # report = spatial.SpatialReport.fromFile('test/SpatialReport_Daily_EIR.bin')
-        # report = spatial.SpatialReport.fromFile('test/SpatialReport_New_Diagnostic_Prevalence.bin')
-        # report = spatial.SpatialReport.fromFile('test/SpatialReport_Population.bin')
         report = SpatialReport(
-            os.path.join(
-                WORKING_DIRECTORY,
-                "data",
-                "spatialreports",
-                "SpatialReport_Prevalence.bin",
+            os.path.join(manifest.spatrep_folder,
+                "SpatialReport_Prevalence.bin"
             )
         )
 
@@ -184,10 +176,8 @@ class TestSpatial(unittest.TestCase):
 
         report = SpatialReport(
             os.path.join(
-                WORKING_DIRECTORY,
-                "data",
-                "spatialreports",
-                "SpatialReportMalariaFiltered_Adult_Vectors.bin",
+                manifest.spatrep_folder,
+                "SpatialReportMalariaFiltered_Adult_Vectors.bin"
             )
         )
 

@@ -19,11 +19,11 @@ from tests import manifest
 class DemogTest(unittest.TestCase):
     def setUp(self) -> None:
         self.out_folder = os.path.join(manifest.output_folder, 'demographics')
+        manifest.create_folder(self.out_folder)
 
     def test_demo_basic_node(self):
         out_filename = os.path.join(self.out_folder, "demographics_basic_node.json")
         demog = Demographics.from_template_node()
-        print(f"Writing out file: {out_filename}.")
         demog.generate_file(out_filename)
         self.assertTrue(os.path.isfile(out_filename), msg=f'{out_filename} is not generated.')
         with open(out_filename, 'r') as demo_file:
@@ -410,13 +410,13 @@ class DemogTest(unittest.TestCase):
         self.pass_through_test(input_filename, output_filename)
 
     def test_generate_from_file_compatibility_Prashanth_single_node(self):
-        input_filename = os.path.join(self.out_folder, "single_node_demographics.json")
+        input_filename = os.path.join(manifest.demo_folder, "single_node_demographics.json")
         output_filename = os.path.join(self.out_folder, "single_node_demographics_comparison.json")
 
         self.pass_through_test(input_filename, output_filename)
 
     def test_generate_from_file_compatibility_Prashanth_4_nodes(self):
-        input_filename = os.path.join(self.out_folder, "Namawala_four_node_demographics_for_Thomas.json")
+        input_filename = os.path.join(manifest.demo_folder, "Namawala_four_node_demographics_for_Thomas.json")
         output_filename = os.path.join(self.out_folder, "Namawala_four_node_demographics_for_Thomas_comparison.json")
 
         self.pass_through_test(input_filename, output_filename)
@@ -458,7 +458,7 @@ class DemogTest(unittest.TestCase):
         manifest.delete_existing_file(out_filename)
         id_ref = "from_csv_test"
 
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in.csv')
         demog = Demographics.from_csv(input_file, res=25/ 3600, id_ref=id_ref)
         self.assertEqual(demog.idref, id_ref)
         demog.SetDefaultProperties()
@@ -511,7 +511,7 @@ class DemogTest(unittest.TestCase):
         out_filename = os.path.join(self.out_folder, "demographics_from_csv_2.json")
         manifest.delete_existing_file(out_filename)
 
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
+        input_file = os.path.join(manifest.demo_folder,'nodes.csv')
         demog = Demographics.from_csv(input_file, res=25 / 3600)
         demog.SetDefaultProperties()
         demog.generate_file(out_filename)
@@ -552,7 +552,7 @@ class DemogTest(unittest.TestCase):
             self.assertEqual(node_id, demog.nodes[index].forced_id)
 
     def test_from_csv_bad_id(self):
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_faulty.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_faulty.csv')
 
         with self.assertRaises(ValueError):
             Demographics.from_csv(input_file, res=25 / 3600)
@@ -561,8 +561,8 @@ class DemogTest(unittest.TestCase):
         out_filename = os.path.join(self.out_folder, "demographics_from_pop_raster_csv.json")
         manifest.delete_existing_file(out_filename)
 
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
-        demog = Demographics.from_pop_raster_csv(input_file)
+        input_file = os.path.join(manifest.demo_folder,'nodes.csv')
+        demog = Demographics.from_pop_raster_csv(input_file, pop_filename_out=self.out_folder)
 
         demog.SetDefaultProperties()
         demog.generate_file(out_filename)
@@ -596,7 +596,7 @@ class DemogTest(unittest.TestCase):
         self.assertTrue(self.check_for_unique_node_id(demog.raw['Nodes']))
 
     def test_from_csv_birthrate(self):
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes_with_birthrate.csv')
+        input_file = os.path.join(manifest.demo_folder,'nodes_with_birthrate.csv')
         demog = Demographics.from_csv(input_file)
         data = pd.read_csv(input_file)
         node_ids = list(data["node_id"])
@@ -604,7 +604,7 @@ class DemogTest(unittest.TestCase):
             birth_rate = data[data["node_id"] == node_id]["birth_rate"].iloc[0]
             self.assertAlmostEqual(demog.get_node_by_id(node_id=node_id).birth_rate, birth_rate)
 
-        bad_input = os.path.join(manifest.current_directory, 'data', 'demographics', 'bad_nodes_with_birthrate.csv')
+        bad_input = os.path.join(manifest.demo_folder,'bad_nodes_with_birthrate.csv')
         with self.assertRaises(ValueError):
             demog = Demographics.from_csv(bad_input)
 
@@ -710,7 +710,7 @@ class DemogTest(unittest.TestCase):
                 'pop': [123, 234, 345, 678],
                 'lon': [10, 11, 12, 13],
                 'lat': [21, 22, 23, 24]}
-        csv_file = pathlib.Path("test_overlay_population.csv")
+        csv_file = pathlib.Path(os.path.join(self.out_folder,"test_overlay_population.csv"))
         pd.DataFrame.from_dict(temp).to_csv(csv_file)
         demo = Demographics.from_csv(csv_file)
 
@@ -1058,15 +1058,15 @@ class DemogTest(unittest.TestCase):
 
     def test_infer_natural_mortality(self):
         demog = Demographics.from_template_node(lat=0, lon=0, pop=100000, name=1, forced_id=1)
-        male_input_file = os.path.join(self.out_folder, "Malawi_male_mortality.csv")
-        female_input_file = os.path.join(self.out_folder, "Malawi_female_mortality.csv")
+        male_input_file = os.path.join(manifest.demo_folder, "Malawi_male_mortality.csv")
+        female_input_file = os.path.join(manifest.demo_folder, "Malawi_female_mortality.csv")
         predict_horizon = 2060
         results_scale_factor = 1.0 / 340.0
         female_distribution, male_distribution = demog.infer_natural_mortality(file_male=male_input_file,
                                                                                file_female=female_input_file,
                                                                                predict_horizon=predict_horizon,
                                                                                results_scale_factor=results_scale_factor,
-                                                                               csv_out=True)
+                                                                               csv_out=False)
         male_input = pd.read_csv(male_input_file)
         female_input = pd.read_csv(female_input_file)
 
@@ -1110,8 +1110,8 @@ class DemogTest(unittest.TestCase):
             self.assertEqual(len(f_y), n_female_year_groups)
 
         # Check result values consistency with reference files
-        male_reference = pd.read_csv(os.path.join(self.out_folder, "MaleTrue"))
-        female_reference = pd.read_csv(os.path.join(self.out_folder, "FemaleTrue"))
+        male_reference = pd.read_csv(os.path.join(manifest.demo_folder, "MaleTrue"))
+        female_reference = pd.read_csv(os.path.join(manifest.demo_folder, "FemaleTrue"))
         for i in range(n_male_age_groups):
             for j in range(n_male_year_groups):
                 male_mortality_rate = male_distribution['ResultValues'][i][j]
@@ -1192,7 +1192,7 @@ class DemogTest(unittest.TestCase):
                              mortality_distribution.to_dict())
 
     def test_mortality_rate_with_node_ids(self):
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
+        input_file = os.path.join(manifest.demo_folder,'nodes.csv')
         demog = Demographics.from_csv(input_file)
         mortality_rate = 0.1234 # CrudeRate
         node_ids = [97, 99]
@@ -1299,8 +1299,8 @@ class DemogTest(unittest.TestCase):
         # Load up the Individual Attributes for verification
         d_ind_atts = demog_dict['Defaults']['IndividualAttributes']
         is_debugging = False
-        filename_template_node = "DEBUG_test_mortality_template_node.json"
-        filename_enhanced_node = "DEBUG_test_mortality_template_node_enhanced.json"
+        filename_template_node = os.path.join(self.out_folder, "DEBUG_test_mortality_template_node.json")
+        filename_enhanced_node = os.path.join(self.out_folder,"DEBUG_test_mortality_template_node_enhanced.json")
         demog.generate_file(name=filename_template_node)
         self.assertNotIn("MortalityDistributionMale", d_ind_atts,
                          msg="The default template node should not have complex mortality distributions set.")
@@ -1488,8 +1488,7 @@ class DemogTest(unittest.TestCase):
 class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
     
     def setUp(self) -> None:
-        print(f"\n{self._testMethodName} started...")
-        self.out_folder = manifest.demo_folder
+        self.out_folder = os.path.join(manifest.output_folder, "demographics")
             
     def test_setmortalityovertimefromdata_eh_filename(self):
         # SetMortalityOverTimeFromData
@@ -1514,12 +1513,13 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         # Case 3: empty data file
         with self.assertRaises(Exception):
             import csv
-            f = open('test_file.csv', 'w')
+            test_file = os.path.join(self.out_folder, 'test_file.csv')
+            f = open(test_file, 'w')
             writer = csv.writer(f)
             writer.writerow("{}")
             f.close()
             demog = Demographics.from_template_node()
-            demog.SetMortalityOverTimeFromData(data_csv='test_file.csv', base_year=1950)
+            demog.SetMortalityOverTimeFromData(data_csv=test_file, base_year=1950)
           
     def test_setmortalityovertimefromdata_eh_base_year(self):
         # fn: SetMortalityOverTimeFromData
@@ -1553,7 +1553,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         # Should be able to do all the basic steps without raising any error.
         
         input_file = os.path.join( manifest.demo_folder, 'nodes.csv')  
-        demog = Demographics.from_pop_raster_csv(input_file)
+        demog = Demographics.from_pop_raster_csv(input_file, pop_filename_out=self.out_folder)
         demog.SetDefaultProperties()
         demog.SetMortalityOverTimeFromData(base_year=1991, data_csv=manifest.mortality_data_age_year_csv)
         
@@ -1574,9 +1574,9 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
 
         out_filename = os.path.join(self.out_folder, "demographics_from_pop_raster_csv.json")
         manifest.delete_existing_file(out_filename)
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'nodes.csv')
+        input_file = os.path.join(manifest.demo_folder,'nodes.csv')
         
-        demog = Demographics.from_pop_raster_csv(input_file)    # BUG 548: "from_pop_raster_csv"  generates only 1  Geo Node
+        demog = Demographics.from_pop_raster_csv(input_file, pop_filename_out=self.out_folder)    # BUG 548: "from_pop_raster_csv"  generates only 1  Geo Node
         geo_nodes = []
         for i in range(0, len(demog.to_dict()['Nodes'])):
             geo_nodes.append(demog.to_dict()['Nodes'][i]['NodeID'])  
@@ -1600,7 +1600,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
         
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         
         demog.SetDefaultProperties()
@@ -1623,7 +1623,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         out_updated_filename = out_filename.replace('_demographics_from_csv', '_updated_demographics_from_csv')
         manifest.delete_existing_file(out_filename)
         manifest.delete_existing_file(out_updated_filename)
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref="from_csv_test")
         
         demog.SetDefaultProperties()
@@ -1658,7 +1658,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
         
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         demog.generate_file(out_filename)
         
@@ -1679,7 +1679,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         out_updated_filename = out_filename.replace('_demographics_from_csv', '_updated_demographics_from_csv')
         manifest.delete_existing_file(out_filename)
         manifest.delete_existing_file(out_updated_filename)
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
 
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref="from_test_csv")
         demog.generate_file(out_filename)
@@ -1706,7 +1706,7 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
         
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
         out_updated_filename = out_filename.replace('_demographics_from_csv', '_updated_demographics_from_csv')
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
 
         manifest.delete_existing_file(out_filename)
         manifest.delete_existing_file(out_updated_filename)
@@ -1739,8 +1739,7 @@ class DemographicsComprehensiveTests_Fertility(unittest.TestCase):
     
     def setUp(self) -> None:
         import pip
-        print(f"\n{self._testMethodName} started...")
-        self.out_folder = manifest.demo_folder
+        self.out_folder = os.path.join(manifest.output_folder, "demographics")
 
         package = "matplotlib"
         try:    __import__(package)
@@ -1783,7 +1782,7 @@ class DemographicsComprehensiveTests_Fertility(unittest.TestCase):
         
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
         out_plot = os.path.join(self.out_folder, self._testMethodName + "_plot.png")
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         out_updated_filename = out_filename.replace('_demographics_from_csv', '_updated_demographics_from_csv')
 
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref="from_csv_test")
@@ -1813,7 +1812,7 @@ class DemographicsComprehensiveTests_Fertility(unittest.TestCase):
         #               plus setmortalityovertimefromdata
         
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         out_updated_filename = out_filename.replace('_demographics_from_csv', '_updated_demographics_from_csv')
         out_plot = os.path.join(self.out_folder, self._testMethodName + "_plot.png")
         out_updated_2_filename = out_filename.replace('_demographics_from_csv', '_updated_2_demographics_from_csv')
@@ -2074,9 +2073,8 @@ class DemographicsOverlayTest(unittest.TestCase):
 
 class DemographicsComprehensiveTests_Migration(unittest.TestCase):
     def setUp(self) -> None:
-        import pip
-        print(f"\n{self._testMethodName} started...")
-        self.out_folder = manifest.demo_folder
+        self.out_folder = os.path.join(manifest.output_folder, 'demographics')
+        manifest.create_folder(self.out_folder)
 
     def test_01_RoundTripMigration_func(self):
         """
@@ -2088,7 +2086,7 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
             id_ref='short term commuting migration'):
         """
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         manifest.delete_existing_file(out_filename)
 
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref="from_csv_test")
@@ -2121,7 +2119,7 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
         import os, os.path
 
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         manifest.delete_existing_file(out_filename)
 
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref="from_csv_test")
@@ -2149,7 +2147,7 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
         """
 
         out_filename = os.path.join(self.out_folder, self._testMethodName + "_demographics_from_csv.json")
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         manifest.delete_existing_file(out_filename)
 
         # Case 1 - no arguments
@@ -2177,7 +2175,7 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
             node_ids = numeric.
             rates_path: Path to csv file with node-to-node migration rates:  source (node id),destination (node id),rate.
         """
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
       
         rates_file = os.path.join(self.out_folder, self._testMethodName + "_ratesfile.txt")
         if os.path.isfile(rates_file): os.remove(rates_file)
@@ -2198,7 +2196,7 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
             rates_path: Path to csv file with node-to-node migration rates:  source (node id),destination (node id),rate.
         """
         from pathlib import Path
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         rates_file = os.path.join(self.out_folder, self._testMethodName + "_rates_file.csv")
         bin_file_contents = os.path.join(self.out_folder, self._testMethodName + "_generated_bin_file_unpacked.csv")
 
@@ -2232,8 +2230,8 @@ class DemographicsComprehensiveTests_Migration(unittest.TestCase):
 class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
     
     def setUp(self) -> None:
-        print(f"\n{self._testMethodName} started...")
-        self.out_folder = manifest.demo_folder
+        self.out_folder = os.path.join(manifest.output_folder, 'demographics')
+        manifest.create_folder(self.out_folder)
 
     def validate_node(self, test_node):
         self.assertGreater(len(test_node['AgeDistribution']['DistributionValues']), 0)  
@@ -2284,7 +2282,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         demog.generate_file(out_filename)
@@ -2304,7 +2302,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2329,7 +2327,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename_02)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2356,7 +2354,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
         manifest.delete_existing_file(out_updated_filename_02)
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2423,7 +2421,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         demog.generate_file(out_filename)
@@ -2443,7 +2441,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2468,7 +2466,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename_02)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2497,7 +2495,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename_02)
 
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         demog.generate_file(out_filename)
@@ -2525,7 +2523,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_updated_filename)
         manifest.delete_existing_file(out_updated_filename_02)
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_in_subset.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_in_subset.csv')
         
         demog = Demographics.from_csv(input_file, res=25/3600, id_ref=id_ref)
         list_of_node_ids = []
@@ -2545,7 +2543,7 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_filename)
         manifest.delete_existing_file(out_updated_filename)
         # World Bank Data:
-        input_WB_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'wb_data.csv')
+        input_WB_file = os.path.join(manifest.demo_folder,'wb_data.csv')
         _wb_births_df = pd.read_csv(input_WB_file)
 
         demog = Demographics.from_template_node()
@@ -2560,11 +2558,11 @@ class DemographicsComprehensiveTests_VitalDynamics(unittest.TestCase):
         manifest.delete_existing_file(out_filename)
         manifest.delete_existing_file(out_updated_filename)
         # World Bank Data:
-        input_WB_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'wb_data.csv')
+        input_WB_file = os.path.join(manifest.demo_folder,'wb_data.csv')
         _wb_births_df = pd.read_csv(input_WB_file)
         
         id_ref = "from_csv_test"
-        input_file = os.path.join(manifest.current_directory, 'data', 'demographics', 'demog_some_nodes.csv')
+        input_file = os.path.join(manifest.demo_folder,'demog_some_nodes.csv')
         demog = Demographics.from_csv(input_file, res=35/3600, id_ref=id_ref)
         demog.generate_file(out_filename)
         

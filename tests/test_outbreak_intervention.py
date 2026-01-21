@@ -5,6 +5,7 @@ import os
 
 from emod_api import campaign
 from emod_api.interventions import outbreak
+from tests import manifest
 
 class TestBasicInterventions(unittest.TestCase):
     # region helper methods
@@ -37,7 +38,7 @@ class TestBasicInterventions(unittest.TestCase):
         self.ic_number_cases_per_node = None
         self.ic_ignore_immunity = None
         self.ic_incubation_period_override = None
-        self.schema_path = pathlib.Path(str(pathlib.Path.cwd()), 'data', 'config', 'input_generic_schema.json')
+        self.schema_path = manifest.malaria_schema_path
         campaign.set_schema(self.schema_path)
         self.assertEqual(len(campaign.campaign_dict["Events"]), 0)
         self.debug_files = []
