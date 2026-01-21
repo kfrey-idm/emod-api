@@ -7,20 +7,17 @@ import pprint
 from emod_api.interventions import outbreak as ob
 from emod_api import campaign as camp
 
-from camp_test import CampaignTest, delete_existing_file
-
-import outbreak_arguments as testcase
-current_directory = os.path.dirname(os.path.realpath(__file__))
-schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
-
-class OutbreakTest(CampaignTest):
+from tests.data.campaign import outbreak_arguments as testcase
+from tests import manifest
+class OutbreakTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        super().setUpClass()
-        camp.set_schema(schema_path)
+        camp.set_schema(manifest.malaria_schema_path)
+        cls.output_folder = os.path.join(manifest.output_folder, 'outbreak')
 
     def tearDown(self) -> None:
-        camp.set_schema(schema_path)
+        camp.set_schema(manifest.malaria_schema_path)
+        
     def test_seed_simple(self):
         testcase.Property_Restrictions = [{"Place": "Rural"}]
         testcase.Filename = "outbreak_individual_seed_simple"
@@ -49,7 +46,8 @@ class OutbreakTest(CampaignTest):
 
         #camp.add() Handled inside the funtion.
         camp_filename = case.Filename
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
         self.assertTrue(os.path.isfile(camp_filename))
         with open(camp_filename, 'r') as file:
@@ -71,7 +69,8 @@ class OutbreakTest(CampaignTest):
 
     def test_as_file(self):
         camp_filename = 'outbreak_as_file.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         timestep = 10
         cases = 44
         ob.new_intervention_as_file(camp, timestep, cases=cases, filename=camp_filename)
@@ -97,7 +96,8 @@ class OutbreakTest(CampaignTest):
         camp.add(ob.new_intervention(camp, timestep * 3, cases=cases * 3), name='outbreak_3')
         camp.add(ob.new_intervention(camp, timestep * 4, cases=cases * 4), name='outbreak_4')
         camp_filename = 'outbreak_as_event.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
         self.assertTrue(os.path.isfile(camp_filename))
         with open(camp_filename, 'r') as file:
@@ -125,7 +125,8 @@ class OutbreakTest(CampaignTest):
         event_name = 'individual_outbreak'
         camp.add(event, name=event_name)
         camp_filename = 'outbreak_individual.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
         self.assertTrue(os.path.isfile(camp_filename))
         with open(camp_filename, 'r') as file:
@@ -150,7 +151,8 @@ class OutbreakTest(CampaignTest):
         ob.seed(camp=camp, Start_Day=timestep, Coverage=coverage)
         event_name = 'individual_outbreak'
         camp_filename = 'outbreak_individual.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
         self.assertTrue(os.path.isfile(camp_filename))
         with open(camp_filename, 'r') as file:
@@ -173,7 +175,8 @@ class OutbreakTest(CampaignTest):
         ob.seed(camp=camp, Start_Day=timestep, Coverage=coverage)
         event_name = 'individual_outbreak'
         camp_filename = 'outbreak_individual.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename + '.json')
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
         self.assertTrue(os.path.isfile(camp_filename))
         with open(camp_filename, 'r') as file:
@@ -206,7 +209,8 @@ class OutbreakTest(CampaignTest):
         camp.add(event, name=event_name)
 
         outbreak_file = 'outbreak.json'
-        delete_existing_file(outbreak_file)
+        outbreak_file = os.path.join(self.output_folder, outbreak_file)
+        manifest.delete_existing_file(outbreak_file)
         camp.save(outbreak_file)
 
         with open(outbreak_file, 'r') as file:
@@ -217,7 +221,8 @@ class OutbreakTest(CampaignTest):
         intervention_only = ob.seed_by_coverage(campaign_builder=camp, timestep=timestep, coverage=coverage, intervention_only=True)
         intervention_only_file = "outbreak_intervention_only.json"
         camp.add(intervention_only, name=event_name)
-        delete_existing_file(intervention_only_file)
+        intervention_only_file = os.path.join(self.output_folder, intervention_only_file)
+        manifest.delete_existing_file(intervention_only_file)
         camp.save(intervention_only_file)
 
         with open(intervention_only_file, 'r') as file:
@@ -236,15 +241,6 @@ class OutbreakTest(CampaignTest):
         shutil.move(outbreak_file, os.path.join(self.output_folder, intervention_only_file))
         shutil.move(intervention_only_file, os.path.join(self.output_folder, intervention_only_file))
         camp.reset()
-
-class MalariaOutbreakTest(OutbreakTest):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.output_folder = os.path.join(current_directory, 'data', 'campaign')
-        if not os.path.isdir(cls.output_folder):
-            print(f"\t{cls.output_folder} doesn't exist, creating {cls.output_folder}.")
-            os.mkdir(cls.output_folder)
-        camp.schema_path = os.path.join(current_directory, 'data', 'config', 'input_malaria_schema.json')
 
 
 if __name__ == '__main__':
