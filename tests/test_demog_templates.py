@@ -1,17 +1,16 @@
 import unittest
 import emod_api.demographics.DemographicsTemplates as DemographicsTemplates
 from emod_api.demographics import Demographics
-from emod_api.demographics.Node import Node
 import numpy as np
 import pathlib
 import json
+from tests import manifest
 
 
 class DemographicsTemplatesTests(unittest.TestCase):
     def setUp(self) -> None:
-        print(f"\n{self._testMethodName} started...")
-        self.nfname = pathlib.Path('..', 'tests', 'data', 'demographics', "demographics_vd_ref.json")
-        self.fname_pop = pathlib.Path('..', 'tests', 'data', 'demographics', "pop_dat_PAK.csv")
+        self.nfname = pathlib.Path(manifest.demo_folder, "demographics_vd_ref.json")
+        self.fname_pop = pathlib.Path(manifest.demo_folder, "pop_dat_PAK.csv")
 
     def test_demographicsBuilder(self):
         ia, nd = DemographicsTemplates.demographicsBuilder(self.fname_pop, 1950, 1950)

@@ -14,7 +14,8 @@ from tests import manifest
 class DemogFromPop(unittest.TestCase):
 
     def setUp(self):
-        self.burkina_demographic_filename = os.path.join(manifest.demo_folder, "burkina_demog.json")
+        self.output_folder = os.path.join(manifest.output_folder, 'demog_from_pop')
+        self.burkina_demographic_filename = os.path.join(self.output_folder, "burkina_demog.json")
         if os.path.exists(self.burkina_demographic_filename):
             os.remove(self.burkina_demographic_filename)
 
@@ -44,11 +45,11 @@ class DemogFromPop(unittest.TestCase):
         # Leaving a berth of 10 for rounding, may need to check later
         self.assertTrue(abs(grid_pop['pop'].sum() - inputdata['pop'].sum()) < 10)
 
-        fname_out = os.path.join(manifest.output_folder, "spatial_gridded_pop_dir")
-        demog = Dem.from_pop_raster_csv(input_path, pop_filename_out=fname_out)
-        self.assertTrue(os.path.isfile(fname_out), msg="No_Site_grid.csv is not generated.")
+        expected_file = os.path.join(self.output_folder, "No_Site_grid.csv")
+        demog = Dem.from_pop_raster_csv(input_path, pop_filename_out=self.output_folder)
+        self.assertTrue(os.path.isfile(expected_file), msg="No_Site_grid.csv is not generated.")
 
-        gridfile = pd.read_csv(fname_out)
+        gridfile = pd.read_csv(expected_file)
 
         demog.SetDefaultProperties()
 
