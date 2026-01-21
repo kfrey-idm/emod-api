@@ -1,12 +1,21 @@
 import emod_api.interventions.migration as migration
 from emod_api import campaign as camp
-import emod_api.interventions.utils as utils
 import copy
-from camp_test import CampaignTest
+import os
+from tests import manifest
 import unittest
 
 
-class MigrationTest(CampaignTest):
+class MigrationTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        camp.set_schema(manifest.malaria_schema_path)
+        cls.output_folder = os.path.join(manifest.output_folder, 'migration')
+        manifest.create_folder(cls.output_folder)
+
+    def tearDown(self) -> None:
+        camp.set_schema(manifest.malaria_schema_path)
+
     def test_new_migration_event(self):
         duration_at_node_constant = 100
         duration_before_leaving_constant = 0
@@ -108,7 +117,3 @@ class MigrationTest(CampaignTest):
         self.assertEqual(nodeset_config["Node_List"], nodes_from)
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-        

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os
 from pathlib import Path
@@ -11,8 +9,7 @@ from datetime import datetime
 from random import random, randint
 import pandas as pd
 import json
-
-WORKING_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+from tests import manifest
 
 
 class TestHeader(unittest.TestCase):
@@ -167,9 +164,7 @@ class TestChannel(unittest.TestCase):
 class TestChannels(unittest.TestCase):
     def test_fromFile(self):
 
-        chart = ChannelReport(
-            os.path.join(WORKING_DIRECTORY, "data", "insetcharts", "InsetChart.json")
-        )
+        chart = ChannelReport(os.path.join(manifest.reports_folder, "InsetChart.json"))
         self.assertEqual(chart.header.time_stamp, "Wed November 27 2019 14:49:15")
         self.assertEqual(
             chart.header.dtk_version, "0 unknown-branch (unknown) May 31 2019 15:04:44"
@@ -339,47 +334,34 @@ class TestChannels(unittest.TestCase):
 
     def test_asDataframe(self):
 
-        gotPandas = False
-        try:
-            import pandas as pd
+        chart = ChannelReport(os.path.join(manifest.reports_folder, "InsetChart.json"))
+        df = chart.as_dataframe()
 
-            gotPandas = True
-        except:
-            pass
+        self.assertEqual(len(df.columns), 16)
+        self.assertAlmostEqual(df.Infected[10], 0.000001222560626957, 16)
+        self.assertEqual(df["Statistical Population"][364], 7544187)
 
-        if gotPandas:
-            chart = ChannelReport(
-                os.path.join(
-                    WORKING_DIRECTORY, "data", "insetcharts", "InsetChart.json"
-                )
-            )
-            df = chart.as_dataframe()
-
-            self.assertEqual(len(df.columns), 16)
-            self.assertAlmostEqual(df.Infected[10], 0.000001222560626957, 16)
-            self.assertEqual(df["Statistical Population"][364], 7544187)
-
-            self.assertSetEqual(
-                set(df.columns),
-                {
-                    "Births",
-                    "Campaign Cost",
-                    "Daily (Human) Infection Rate",
-                    "Disease Deaths",
-                    "Exposed Population",
-                    "Human Infectious Reservoir",
-                    "Infected",
-                    "Infectious Population",
-                    "Log Prevalence",
-                    "New Infections",
-                    "Newly Symptomatic",
-                    "Recovered Population",
-                    "Statistical Population",
-                    "Susceptible Population",
-                    "Symptomatic Population",
-                    "Waning Population",
-                },
-            )
+        self.assertSetEqual(
+            set(df.columns),
+            {
+                "Births",
+                "Campaign Cost",
+                "Daily (Human) Infection Rate",
+                "Disease Deaths",
+                "Exposed Population",
+                "Human Infectious Reservoir",
+                "Infected",
+                "Infectious Population",
+                "Log Prevalence",
+                "New Infections",
+                "Newly Symptomatic",
+                "Recovered Population",
+                "Statistical Population",
+                "Susceptible Population",
+                "Symptomatic Population",
+                "Waning Population",
+            },
+        )
 
         return
 
@@ -437,9 +419,7 @@ class TestChannels(unittest.TestCase):
         self.assertRaises(
             AssertionError,
             ChannelReport,
-            os.path.join(
-                WORKING_DIRECTORY, "data", "insetcharts", "missingHeader.json"
-            ),
+            os.path.join(manifest.reports_folder, "missingHeader.json"),
         )
 
         return
@@ -449,9 +429,7 @@ class TestChannels(unittest.TestCase):
         self.assertRaises(
             AssertionError,
             ChannelReport,
-            os.path.join(
-                WORKING_DIRECTORY, "data", "insetcharts", "missingChannels.json"
-            ),
+            os.path.join(manifest.reports_folder, "missingChannels.json"),
         )
 
         return
@@ -461,7 +439,7 @@ class TestChannels(unittest.TestCase):
         self.assertRaises(
             AssertionError,
             ChannelReport,
-            os.path.join(WORKING_DIRECTORY, "data", "insetcharts", "missingUnits.json"),
+            os.path.join(manifest.reports_folder, "missingUnits.json"),
         )
 
         return
@@ -471,35 +449,37 @@ class TestChannels(unittest.TestCase):
         self.assertRaises(
             AssertionError,
             ChannelReport,
-            os.path.join(WORKING_DIRECTORY, "data", "insetcharts", "missingData.json"),
+            os.path.join(manifest.reports_folder, "missingData.json"),
         )
 
         return
-    
+
+
 class TestInsetJson(unittest.TestCase):
     @classmethod
-    def setUpClass(self):
-        self.inset_path = Path('data') / 'insetcharts'
-    
+    def setUpClass(cls):
+        cls.inset_path = manifest.reports_folder
+
     def test_icj_to_csv(self):
         inset_chart_json_to_csv_dataframe_pd(self.inset_path)
-        csv_path = self.inset_path.joinpath("InsetChart.csv")
-        self.assertTrue(csv_path.exists())
+        csv_path = os.path.join(self.inset_path, "InsetChart.csv")
+        self.assertTrue(os.path.isfile(csv_path), f"No InsetChart.csv file at {csv_path}")
 
         csv_df = pd.read_csv(csv_path)
-        json_path = self.inset_path.joinpath("InsetChart.json")
-        self.assertTrue(json_path.exists(), f"No InsetChart.json file at {json_path}")
+        json_path = os.path.join(self.inset_path, "InsetChart.json")
+        self.assertTrue(os.path.isfile(json_path), f"No InsetChart.json file at {json_path}")
 
         with open(json_path) as jc:
             json_dict = json.load(jc)
-        
+
         for channel in json_dict["Channels"]:
             self.assertIn(channel, csv_df.columns, f"Column {channel} was not found in the csv at {csv_path}")
+
 
 class TestPropReport(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.report_path = Path('data') / 'propertyreports' / 'prop_dir'
+        self.report_path = os.path.join(manifest.reports_folder, 'prop_dir')
 
     @unittest.skip("known issue")
     def test_prop_report_json_to_csv(self):
@@ -510,7 +490,3 @@ class TestPropReport(unittest.TestCase):
         self.assertTrue(csv_path.exists(), f"{csv_path} cannot be found, should have been generated by prop_report_json_to_csv()")
         df = pd.read_csv(csv_path)
         self.assertIn("Infected:", df.columns, msg=f"Infected column not in {self.report_path}")
-
-
-if __name__ == "__main__":
-    unittest.main()

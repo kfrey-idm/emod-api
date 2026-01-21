@@ -4,10 +4,6 @@ import unittest
 import emod_api.demographics.Demographics as Demographics
 import emod_api.demographics.Node as Node
 import emod_api.demographics.DemographicsTemplates as DT
-try:
-    import manifest  # works for jenkins
-except ImportError:
-    from . import manifest  # works for local running
 import math
 from datetime import date
 import getpass
@@ -17,12 +13,12 @@ import pathlib
 from emod_api.demographics.PropertiesAndAttributes import IndividualAttributes, IndividualProperty, IndividualProperties, NodeAttributes
 import emod_api.demographics.PreDefinedDistributions as Distributions
 import pprint
+from tests import manifest
 
 
 class DemogTest(unittest.TestCase):
     def setUp(self) -> None:
-        print(f"\n{self._testMethodName} started...")
-        self.out_folder = manifest.demo_folder
+        self.out_folder = os.path.join(manifest.output_folder, 'demographics')
 
     def test_demo_basic_node(self):
         out_filename = os.path.join(self.out_folder, "demographics_basic_node.json")

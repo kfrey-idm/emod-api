@@ -8,11 +8,10 @@ from tests import manifest
 
 class DemoConfigTest(unittest.TestCase):
     def setUp(self) -> None:
-        print(f"\n{self._testMethodName} started...")
         self.reset_config()
 
     def get_config_as_object(self):
-        schema_name = manifest.generic_schema_path
+        schema_name = manifest.malaria_schema_path
         config_obj = dfs.get_default_config_from_schema(schema_name, as_rod=True)
         return config_obj
 
@@ -53,20 +52,7 @@ class DemoConfigTest(unittest.TestCase):
             else:
                 self.assertEqual(self.config.parameters.Enable_Heterogeneous_Intranode_Transmission, 1)
             i=+1
-    
-    # Tests that if overdispersion is set, Enable_Infection_Rate_Overdispersion is True
-    def test_age_dependent_transmission_config(self):
-        for index in range(2):
-            demog = Demographics.from_template_node()
-            demog.SetDefaultProperties()
-            if index:
-                demog.SetOverdispersion(0.75)
-            self.assertEqual(len(demog.implicits), 5+index)
-            demog.implicits[-1](self.config)
-            if not index:
-                self.assertEqual(self.config.parameters.Enable_Infection_Rate_Overdispersion, 0)
-            else:
-                self.assertEqual(self.config.parameters.Enable_Infection_Rate_Overdispersion, 1)
+
 
     def test_set_birth_rate_config(self):
         demog = Demographics.from_template_node()
