@@ -31,10 +31,8 @@ class TestBasicInterventions(unittest.TestCase):
 
         # intervention config parts
         self.intervention_config = None
-        self.ic_clade = None
         self.ic_genome = None
         self.ic_import_age = None
-        self.ic_import_female_prob = None
         self.ic_number_cases_per_node = None
         self.ic_ignore_immunity = None
         self.ic_incubation_period_override = None
@@ -78,11 +76,9 @@ class TestBasicInterventions(unittest.TestCase):
         self.ec_property_restrictions = self.event_coordinator['Property_Restrictions']
 
         self.intervention_config = self.event_coordinator['Intervention_Config']
-        self.ic_clade = self.intervention_config['Clade']
         self.ic_genome = self.intervention_config['Genome']
         if self.intervention_config['class'] == 'Outbreak':
             self.ic_import_age = self.intervention_config['Import_Age']
-            self.ic_import_female_prob = self.intervention_config['Import_Female_Prob']
             self.ic_number_cases_per_node = self.intervention_config['Number_Cases_Per_Node']
         elif self.intervention_config['class'] == 'OutbreakIndividual':
             self.ic_ignore_immunity = self.intervention_config['Ignore_Immunity']
@@ -115,10 +111,8 @@ class TestBasicInterventions(unittest.TestCase):
         with open (expected_filename) as infile:
             self.tmp_intervention = json.load(infile)["Events"][0]
         self.parse_intervention_parts()
-        self.assertEqual(self.ic_clade, 0)
         self.assertEqual(self.ic_genome, 0)
         self.assertEqual(self.ic_import_age, 365)
-        self.assertEqual(self.ic_import_female_prob, 0.5)
         self.assertEqual(self.ic_number_cases_per_node, expected_cases)
         self.assertEqual(self.start_day, expected_timestep)
 
@@ -140,10 +134,8 @@ class TestBasicInterventions(unittest.TestCase):
         with open (expected_filename) as infile:
             self.tmp_intervention = json.load(infile)["Events"][0]
         self.parse_intervention_parts()
-        self.assertEqual(self.ic_clade, 0)
         self.assertEqual(self.ic_genome, 0)
         self.assertEqual(self.ic_import_age, 365)
-        self.assertEqual(self.ic_import_female_prob, 0.5)
         self.assertEqual(self.ic_number_cases_per_node, expected_cases)
         self.assertEqual(self.start_day, expected_timestep)
 
