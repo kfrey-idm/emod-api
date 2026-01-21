@@ -37,7 +37,7 @@ def new_intervention(timestep, durs=None, dips=None,
 
 def new_intervention_as_file(timestep, filename=None):
     camp.set_schema("schema.json")
-    camp.add(new_intervention(timestep, durs, dips, nods))
+    camp.add(new_intervention(timestep, durations, daily_import_pressures, nodes))
 
     if filename is None:
         filename = "import_pressure.json"
