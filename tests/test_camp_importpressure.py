@@ -7,21 +7,17 @@ from copy import deepcopy
 
 from emod_api.interventions import import_pressure as ip
 from emod_api import campaign as camp
-
-from camp_test import CampaignTest, delete_existing_file
-
-current_directory = os.path.dirname(os.path.realpath(__file__))
-schema_path = os.path.join(current_directory, 'data', 'config', 'input_generic_schema.json')
-
-class ImportPressureTest(CampaignTest):
+from tests import manifest
+class ImportPressureTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        camp.set_schema(schema_path)
+        camp.set_schema(manifest.malaria_schema_path)
         ip.schema_path = camp.schema_path
+        cls.output_folder = os.path.join(manifest.output_folder, 'import_pressure')
 
     def tearDown(self) -> None:
-        camp.set_schema(schema_path)
+        camp.set_schema(manifest.malaria_schema_path)
         
     def test_as_file(self):
         durations = [10, 10, 10, 10]
@@ -31,7 +27,8 @@ class ImportPressureTest(CampaignTest):
         nodes = [0, 1, 2, 3, 4]
         ip.nodes = deepcopy(nodes)
         camp_filename = 'import_pressure_as_file.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename)
+        manifest.delete_existing_file(camp_filename)
         timestep = 10
         ip.new_intervention_as_file(timestep, camp_filename)
         print(f"Check for valid campaign file at: {camp_filename}.")
@@ -51,7 +48,8 @@ class ImportPressureTest(CampaignTest):
 
     def test_as_event(self):
         camp_filename = "import_pressure_as_event.json"
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename)
+        manifest.delete_existing_file(camp_filename)
 
         durations_1 = [10, 10, 10, 10]
         daily_import_pressures_1 = [0.0, 0.25, 0.5, 1.0]
@@ -118,15 +116,6 @@ class ImportPressureTest(CampaignTest):
                 if item is not None:
                     return 1
 
-
-class MalariaImportPressureTest(ImportPressureTest):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.output_folder = os.path.join(current_directory, 'data', 'campaign')
-        if not os.path.isdir(cls.output_folder):
-            print(f"\t{cls.output_folder} doesn't exist, creating {cls.output_folder}.")
-            os.mkdir(cls.output_folder)
-        camp.schema_path = os.path.join(current_directory, 'data', 'config', 'input_malaria_schema.json')
 
 
 if __name__ == '__main__':

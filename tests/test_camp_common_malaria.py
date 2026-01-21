@@ -1,28 +1,23 @@
 #!/usr/bin/env python
 import os
 import unittest
-import shutil
 import json
 
 from emod_api.interventions.common import *
 from emod_api.interventions import common, utils, migration
 from emod_api import campaign as camp
 from emod_api.utils import Distributions
-from camp_test import CampaignTest, delete_existing_file
+from tests import manifest
 
-current_directory = os.path.dirname(os.path.realpath(__file__))
-schema_path_malaria = os.path.join(current_directory, 'data', 'config',
-                                   'input_malaria_schema.json')
-
-
-class CommonInterventionTestMalaria(CampaignTest):
+class CommonInterventionTestMalaria(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        super().setUpClass()
-        common.old_adhoc_trigger_style = True
+        camp.set_schema(manifest.malaria_schema_path)
+        cls.output_folder = os.path.join(manifest.output_folder, 'migration')
+        manifest.create_folder(cls.output_folder)
 
     def tearDown(self) -> None:
-        camp.set_schema(schema_path_malaria)
+        camp.set_schema(manifest.malaria_schema_path)
         self.common_reset_globals()
 
     def common_reset_globals(self):
@@ -33,7 +28,10 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def save_campaignfile_and_load_event(self, intervention, camp_filename):
         camp.add(intervention)
+        camp_filename = os.path.join(self.output_folder, camp_filename)
+        manifest.delete_existing_file(camp_filename)
         camp.save(camp_filename)
+
         # print(f"Check for valid campaign file at: {camp_filename}.")
         self.assertTrue(os.path.isfile(camp_filename))
 
@@ -46,7 +44,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_property_value_changer(self):
         camp_filename = 'property_value_changer.json'
-        delete_existing_file(camp_filename)
+        
         target_property_key = 'Risk'
         target_property_value = 'High'
         intervention = PropertyValueChanger(camp,
@@ -60,11 +58,10 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(event['Daily_Probability'], 0.6)
         self.assertEqual(event['Target_Property_Key'], target_property_key)
         self.assertEqual(event['Target_Property_Value'], target_property_value)
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_property_value_changer_defaults(self):
         camp_filename = 'property_value_changer.json'
-        delete_existing_file(camp_filename)
+        
         target_property_key = 'Risk'
         target_property_value = 'High'
         daily_probability = 1.0
@@ -81,7 +78,6 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(event['Target_Property_Key'], target_property_key)
         self.assertEqual(event['Target_Property_Value'], target_property_value)
         self.assertEqual(event['Revert'], revert)
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_scheduled_campaign_event_exception(self):
         with self.assertRaises(AssertionError) as context:
@@ -93,7 +89,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_scheduled_campaign_event_using_Nodeset_Config(self):
         camp_filename = 'scheduled_campaign_event.json'
-        delete_existing_file(camp_filename)
+        
         intervention_list = [BroadcastEvent(camp)]
         intervention = ScheduledCampaignEvent(camp,
                                               Start_Day=30,
@@ -117,11 +113,10 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
         ic = ecc['Intervention_Config']
         self.assertTrue(ic.items() <= intervention_list[0].items())
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_scheduled_campaign_event(self):
         camp_filename = 'scheduled_campaign_event.json'
-        delete_existing_file(camp_filename)
+        
         intervention_list = [BroadcastEvent(camp)]
         intervention = ScheduledCampaignEvent(camp,
                                               Start_Day=30,
@@ -145,8 +140,6 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(ecc['Timesteps_Between_Repetitions'], 10)
         ic = ecc['Intervention_Config']
         self.assertTrue(ic.items() <= intervention_list[0].items())
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
-
     def test_new_migration_intervention(self):
         mean = 0.123
         std_dev = 0.345
@@ -273,8 +266,6 @@ class CommonInterventionTestMalaria(CampaignTest):
         ecc = event['Event_Coordinator_Config']
         self.assertEqual(ecc["Target_Demographic"], "Everyone")
 
-        for filename in test_files:
-            shutil.move(filename, os.path.join(self.output_folder, filename))
 
     def test_empty_nodeset(self):
         # Test that empty nodeset returns empty list of target nodes
@@ -322,7 +313,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_triggered_campaign_event_using_Nodeset_Config(self):
         camp_filename = 'triggered_campaign_event.json'
-        delete_existing_file(camp_filename)
+        
 
         triggers = ['asfdasfas', 'sdfasfadsf']
         intervention_list = [BroadcastEvent(camp)]
@@ -366,7 +357,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
         """
         camp_filename = 'triggered_campaign_event.json'
-        delete_existing_file(camp_filename)
+        
 
         triggers = ["test", 'terst']
         intervention_list = [BroadcastEvent(camp)]
@@ -406,7 +397,6 @@ class CommonInterventionTestMalaria(CampaignTest):
                         intervention_list[0].items())
         self.assertEqual(ac['class'], 'BroadcastEvent')
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
         # Testing a few cases where age range and sex are specified
         test_files = ["TriggeredCE_MinAge.json", "TriggeredCE_MaxAge.json", "TriggeredCE_Gender.json",
@@ -553,8 +543,6 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(ecc["Number_Repetitions"], num_repetitions)
         self.assertEqual(ecc["Timesteps_Between_Repetitions"], timestep_between_rep)
 
-        for filename in test_files:
-            shutil.move(filename, os.path.join(self.output_folder, filename))
 
     def test_triggered_campaign_event_delay(self):
         """
@@ -563,7 +551,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
         """
         camp_filename = 'triggered_campaign_event_delay.json'
-        delete_existing_file(camp_filename)
+        
         triggers = ['safsas', 'asdfasdf']
 
         intervention_list = [BroadcastEvent(camp)]
@@ -602,7 +590,6 @@ class CommonInterventionTestMalaria(CampaignTest):
                         intervention_list[0].items())
         self.assertEqual(delayed_ac['class'], 'BroadcastEvent')
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_triggered_campaign_event_delay2(self):
         """
@@ -611,7 +598,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
         """
         camp_filename = 'triggered_campaign_event_delay.json'
-        delete_existing_file(camp_filename)
+        
         triggers = ['asdfa', 'sfasdfa']
 
         intervention_list = [BroadcastEvent(camp)]
@@ -650,7 +637,6 @@ class CommonInterventionTestMalaria(CampaignTest):
                         intervention_list[0].items())
         self.assertEqual(delayed_ac['class'], 'BroadcastEvent')
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_StandardDiagnostic_default(self):
         standard_diagnostic = StandardDiagnostic(camp)
@@ -703,7 +689,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_campaign_delay_event(self):
         camp_filename = 'triggered_campaign_delay_event.json'
-        delete_existing_file(camp_filename)
+        
 
         start_day = 3
         trigger = 'NewInfection'
@@ -727,8 +713,6 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertTrue(delayed_ac.items() <= intervention_list[0].items())
         self.assertEqual(delayed_ac['class'], 'BroadcastEvent')
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
-
     def test_camp_send_receive(self):
         # Create NLHTI event
         # Create boradcast event
@@ -737,6 +721,7 @@ class CommonInterventionTestMalaria(CampaignTest):
         # Make sure all are formatted properly
 
         camp_filename = 'send_and_receive_camp.json'
+        camp_filename = os.path.join(self.output_folder, camp_filename)
 
         triggers = ['ExitedRelationship', 'EnteredRelationship']
 
@@ -773,6 +758,7 @@ class CommonInterventionTestMalaria(CampaignTest):
     def test_camp_reset(self):
         def save_file(camp):
             camp_filename = "reset_camp.json"
+            camp_filename = os.path.join(self.output_folder, camp_filename)
             camp.save(camp_filename)
             with open(camp_filename, 'r') as file:
                 campaign = json.load(file)
@@ -805,19 +791,10 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(len(campaign['Events']), 0)
         camp.add(event=BroadcastEvent(camp))
 
-        # Check that set schema gets rid of events and changes path name
-        if camp.schema_path == "data/config/input_generic_schema.json":
-            s2c.schema_cache = None
-            camp.set_schema("data/config/input_malaria_schema.json")
-            self.assertEqual(len(campaign['Events']), 0)
-
-            self.assertEqual(camp.schema_path, "data/config/input_malaria_schema.json")  # will only fail on generic run
-            camp.schema_path = "data/config/input_generic_schema.json"
-
-        os.remove("reset_camp.json")
 
     def test_triggered_campaign_event_optional_delay(self):
         camp_filename = "optional_delay.json"
+        camp_filename = os.path.join(self.output_folder, camp_filename)
         start_day = 4
         triggers = ["Test", 'asdfas']
         iv_list = [BroadcastEvent(camp)]
@@ -850,10 +827,6 @@ class CommonInterventionTestMalaria(CampaignTest):
                                                                             blackout=blackout)
 
             camp.add(event)
-            camp.save(camp_filename)
-            with open(camp_filename, 'r') as file:
-                camp_event = json.load(file)['Events'][0]
-
             self.assertEqual(event['Start_Day'], start_day)
             ic = event["Event_Coordinator_Config"]["Intervention_Config"]
             self.assertEqual(ic["Demographic_Coverage"], coverage)
@@ -874,11 +847,10 @@ class CommonInterventionTestMalaria(CampaignTest):
             self.assertEqual(ic["Target_Age_Min"], target_age_min)
             self.assertEqual(ic["Target_Gender"], target_sex)
             self.assertEqual(ic["Target_Residents_Only"], target_residents_only)
-        os.remove(camp_filename)  # comment out to save camp file
 
     def test_property_restrictions(self):
         camp_filename = 'prop_restrictions.json'
-        delete_existing_file(camp_filename)
+        
 
         intervention_list = [BroadcastEvent(camp)]
         # Ensuring that the property restrictions are properly formatted
@@ -922,11 +894,9 @@ class CommonInterventionTestMalaria(CampaignTest):
                 self.assertEqual(len(event['Property_Restrictions']), 0,
                                  msg=f"{prop} is being formatted as {event['Property_Restrictions']}")
 
-        os.remove(camp_filename)
-
     def test_property_value_changer_defaults(self):
         camp_filename = 'property_value_changer.json'
-        delete_existing_file(camp_filename)
+        
 
         target_property_key = 'Risk'
         target_property_value = 'High'
@@ -948,11 +918,10 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(event['Target_Property_Value'], target_property_value)
         self.assertEqual(event['Revert'], revert)
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_triggered_individual_prop_by_age(self):
         camp_filename = 'change_prop.json'
-        delete_existing_file(camp_filename)
+        
         new_ip_key = "Risk"
         new_ip_value = "Low"
         change_age_in_days = 100
@@ -985,11 +954,11 @@ class CommonInterventionTestMalaria(CampaignTest):
         self.assertEqual(aic["Delay_Period_Constant"], change_age_in_days)
         self.assertEqual(aic["class"], "DelayedIntervention")
 
-        shutil.move(camp_filename, os.path.join(self.output_folder, camp_filename))
 
     def test_change_individual_property_scheduled(self):
         camp_filename = 'change_prop_scheduled.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename)
+        
         new_ip_key = "Risk"
         new_ip_value = "High"
         start_day = 10
@@ -1047,7 +1016,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_change_individual_property_triggered(self):
         camp_filename = 'change_prop_scheduled.json'
-        delete_existing_file(camp_filename)
+        camp_filename = os.path.join(self.output_folder, camp_filename)
         new_ip_key = "Risk"
         new_ip_value = "High"
         start_day = 10
@@ -1121,7 +1090,7 @@ class CommonInterventionTestMalaria(CampaignTest):
         number_repetitions = 3
         timesteps_between_repetitions = 10
         camp_filename = 'change_prop_scheduled.json'
-        delete_existing_file(camp_filename)
+        
         new_ip_key = "Risk"
         new_ip_value = "High"
         start_day = 10
@@ -1224,7 +1193,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_broadcast_node_event_default(self):
         camp_filename = 'test_broadcast_node_event_default.json'
-        delete_existing_file(camp_filename)
+        
 
         node_event = 'ExitedRelationship'
         intervention = common.broadcast_node_event(camp, broadcast_event=node_event)
@@ -1240,7 +1209,7 @@ class CommonInterventionTestMalaria(CampaignTest):
 
     def test_broadcast_node_event_custom(self):
         camp_filename = 'test_broadcast_node_event_custom.json'
-        delete_existing_file(camp_filename)
+        
 
         node_event = 'Testing'
         cost = 3
@@ -1339,7 +1308,7 @@ class CommonInterventionTestMalaria(CampaignTest):
     def test_add_triggered_coordinator_event_custom(self):
         # tests list of individual-level interventions
         # tests only gender selection
-        camp.set_schema(schema_path_malaria)
+        
         start_trigger_condition_list = ['NewInfection']
         broadcast = "Queen"
         broadcast2 = "Queen2"
