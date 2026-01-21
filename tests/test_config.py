@@ -476,11 +476,6 @@ class ConfigTest(unittest.TestCase):
         self.input_filename = os.path.join(manifest.config_folder, "input_nested_param_overrides.json")
         self.config_from_po_test()
 
-    def test_7_config_from_po(self):
-        self.output_filename = os.path.join(self.output_folder, "output_config_from_po.json")
-        self.input_filename = os.path.join(manifest.config_folder, "input_param_overrides.json")
-        self.config_from_po_test()
-
     def config_from_po_test(self):
         manifest.delete_existing_file(self.output_filename)
         from_overrides.flattenConfig(configjson_path=self.input_filename, new_config_name=self.output_filename, use_full_out_path=True)
