@@ -25,7 +25,6 @@ class EmodapiMigrationImportTest(unittest.TestCase):
             'from_file',
             'examine_file',
             'from_params',
-            'from_demog_and_param_gravity_webservice',
             'from_demog_and_param_gravity',
             'to_csv'
         ]

@@ -774,10 +774,9 @@ class DemogTest(unittest.TestCase):
                 'pop': [123, 234, 345, 678],
                 'lon': [10, 11, 12, 13],
                 'lat': [21, 22, 23, 24]}
-        csv_file = pathlib.Path("test_overlay_population.csv")
+        csv_file = os.path.join(self.out_folder, "test_overlay_population.csv")
         pd.DataFrame.from_dict(temp).to_csv(csv_file)
         demo = Demographics.from_csv(csv_file)
-        csv_file.unlink()
 
         overlay_nodes = []  # list of all overlay nodes
         overlay_nodes_id_1 = [1, 2]  # Change susceptibility of nodes with ids 1 and 2
@@ -799,7 +798,7 @@ class DemogTest(unittest.TestCase):
             overlay_nodes.append(Node.OverlayNode(node_id=node_id, individual_attributes=new_individual_attributes_2))
 
         demo.apply_overlay(overlay_nodes)
-        demo.generate_file("test_overlay_list_of_nodes.json")
+        demo.generate_file( os.path.join(self.out_folder, "test_overlay_list_of_nodes.json"))
 
         self.assertDictEqual(demo.nodes[0].individual_attributes.to_dict(), new_individual_attributes_1.to_dict())
         self.assertDictEqual(demo.nodes[1].individual_attributes.to_dict(), new_individual_attributes_1.to_dict())

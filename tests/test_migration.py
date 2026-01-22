@@ -29,11 +29,16 @@ class MigrationTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-
+        cls.output_folder = os.path.join(manifest.output_folder, "migration")
         cls.user = environ["USERNAME"] if system() == "Windows" else environ["USER"]
         filename = os.path.join(manifest.migration_folder, "Kenya_Regional_Migration_from_Census.bin")
         cls.kenya_regional_migration = from_file(filename)
         cls.guinea_pig = Migration()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Class level cleanup after all tests in the class
+        cls.resource = None  # Example cleanup
 
     def test_defaults(self):
         """
@@ -534,7 +539,6 @@ class MigrationTests(unittest.TestCase):
 
     def test_examine_file(self):
         filename = os.path.join(manifest.migration_folder, "Seattle_30arcsec_local_migration.bin")
-        output = os.path.join(manifest.output_folder, "seattle_csv.csv")
 
         expected_output = ["Author:", "DatavalueCount:", "DateCreated:", "GenderDataType:", "IdReference:",
                            "InterpolationType:", "MigrationType:", "NodeCount:", "NodeOffsets:", "Tool:", "Nodes:"]
@@ -795,7 +799,7 @@ class MigrationTests(unittest.TestCase):
         migration_local = from_demog_and_param_gravity(demographics_file, gravity_params=[1, 1, 1, -1],
                                                        id_ref=id_ref, migration_type=Migration.REGIONAL)
 
-        migration_local_file = Path(os.path.join(manifest.output_folder, 'gravity_distance.bin'))
+        migration_local_file = Path(os.path.join(self.output_folder, 'gravity_distance.bin'))
         migration_local.to_file(migration_local_file)
 
         f = io.StringIO()
@@ -812,7 +816,7 @@ class MigrationTests(unittest.TestCase):
                                                  id_ref='from_demog_and_param_gravity_test',
                                                  migration_type=Migration.LOCAL)
 
-        migration_file = Path(os.path.join(manifest.output_folder, 'test_from_demog_and_param_gravity_with_reference.bin'))
+        migration_file = Path(os.path.join(self.output_folder, 'test_from_demog_and_param_gravity_with_reference.bin'))
         migration.to_file(migration_file)
 
         reference_file = Path(os.path.join(manifest.migration_folder, 'migration_gravity_model_reference.bin'))
@@ -823,11 +827,11 @@ class MigrationTests(unittest.TestCase):
                 'destination': [2, 3, 4],
                 'rate': [0.1, 0.2, 0.3]}
 
-        csv_file = Path(os.path.join(manifest.output_folder, "test_migration.csv"))
+        csv_file = Path(os.path.join(self.output_folder, "test_migration.csv"))
         pd.DataFrame.from_dict(temp).to_csv(csv_file, index=False)
         migration = from_csv(csv_file, id_ref="testing")
 
-        migration_file = os.path.join(manifest.output_folder, "test_migration.bin")
+        migration_file = os.path.join(self.output_folder, "test_migration.bin")
         migration.to_file(migration_file)
         migration_from_bin = from_file(migration_file)
 
