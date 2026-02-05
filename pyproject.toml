@@ -78,7 +78,7 @@ Issues = "https://github.com/EMOD-Hub/emod-api/issues"
 find = {include = ["emod_api*"]}
 
 [tool.bumpversion]
-current_version = "2.0.42"
+current_version = "2.0.43"
 commit = true
 
 [[tool.bumpversion.files]]
