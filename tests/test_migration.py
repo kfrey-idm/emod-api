@@ -96,7 +96,10 @@ class MigrationTests(unittest.TestCase):
         """DatavalueCount is _not_ directly settable (derived from underlying data)."""
         with self.assertRaises(AttributeError) as context:
             self.guinea_pig.DatavalueCount = 42
-        self.assertTrue("can't set attribute" in str(context.exception))
+        # Python 3.9: "can't set attribute"
+        # Python 3.13: "property 'DatavalueCount' of 'MigrationFile' object has no setter"
+        error_msg = str(context.exception)
+        self.assertTrue("can't set attribute" in error_msg or "has no setter" in error_msg)
         return
 
     def test_get_datecreated(self):
@@ -259,7 +262,10 @@ class MigrationTests(unittest.TestCase):
         """NodeCount cannot be set directly, derives from underlying data."""
         with self.assertRaises(AttributeError) as context:
             self.kenya_regional_migration.NodeCount = 42
-        self.assertTrue("can't set attribute" in str(context.exception))
+        # Python 3.9: "can't set attribute"
+        # Python 3.13: "property 'NodeCount' of 'MigrationFile' object has no setter"
+        error_msg = str(context.exception)
+        self.assertTrue("can't set attribute" in error_msg or "has no setter" in error_msg)
         return
 
     def test_get_nodeoffsets(self):
@@ -281,7 +287,10 @@ class MigrationTests(unittest.TestCase):
         """NodeOffsets cannot be set directly, derives from underlying data."""
         with self.assertRaises(AttributeError) as context:
             self.guinea_pig.NodeOffsets = {0: 0, 1: 12, 2: 24}
-        self.assertTrue("can't set attribute" in str(context.exception))
+        # Python 3.9: "can't set attribute"
+        # Python 3.13: "property 'NodeOffsets' of 'MigrationFile' object has no setter"
+        error_msg = str(context.exception)
+        self.assertTrue("can't set attribute" in error_msg or "has no setter" in error_msg)
         return
 
     def test_get_tool(self):

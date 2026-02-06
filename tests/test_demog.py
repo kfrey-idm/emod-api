@@ -1737,12 +1737,16 @@ class DemographicsComprehensiveTests_Mortality(unittest.TestCase):
 class DemographicsComprehensiveTests_Fertility(unittest.TestCase):
     
     def setUp(self) -> None:
-        import pip
         self.out_folder = os.path.join(manifest.output_folder, "demographics")
 
-        package = "matplotlib"
-        try:    __import__(package)
-        except ImportError:  pip.main(['install', package])     
+        # Matplotlib should be installed via test dependencies
+        # Removed auto-install logic for Python 3.13 compatibility
+        try:
+            import matplotlib
+            # Use non-interactive backend to avoid GUI/tkinter issues
+            matplotlib.use('Agg')
+        except ImportError:
+            self.skipTest("matplotlib is required for this test. Install with: pip install matplotlib")     
 
     def test_setfertilityovertimefromparams_eh_filename(self):
         # SetFertilityOverTimeFromParams
