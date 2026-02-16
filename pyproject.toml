@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emod-api"
-version = "3.0.2"
+version = "3.1.0"
 description = "Core tools for modeling using EMOD"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,12 +27,9 @@ keywords = ["modeling", "IDM"]
 dependencies = [
     "matplotlib",
     "scipy",
-    "pandas",
     "numpy",
-    "shapely",
     "pyproj",
     "geographiclib",
-    "scikit-learn",
     "lz4"
 ]
 license = "MIT"
@@ -76,7 +73,7 @@ Issues = "https://github.com/EMOD-Hub/emod-api/issues"
 find = {include = ["emod_api*"]}
 
 [tool.bumpversion]
-current_version = "3.0.2"
+current_version = "3.1.0"
 commit = true
 
 [[tool.bumpversion.files]]
