@@ -70,6 +70,10 @@ Output
 
 Please see the documentation for [testing](/tests/README.md).
 
+## Have an issue?
+
+Please create your issue in our [issues-and-discussions repository](https://github.com/EMOD-Hub/issues-and-discussions).
+
 ## Community
 
 The EMOD Community is made up of researchers and software developers, primarily focused on malaria and HIV research.
