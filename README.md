@@ -70,16 +70,10 @@ Output
 
 Please see the documentation for [testing](/tests/README.md).
 
-## Have an issue?
+## Community and Contributions
 
-Please create your issue in our [issues-and-discussions repository](https://github.com/EMOD-Hub/issues-and-discussions).
-
-## Community
-
-The EMOD Community is made up of researchers and software developers, primarily focused on malaria and HIV research.
-We value mutual respect, openness, and a collaborative spirit. If these values resonate with you, we invite you to join our EMOD Slack Community by completing this form:
-
-https://forms.office.com/r/sjncGvBjvZ
+- Have a question or a comment? Check out our [Discussions](https://github.com/EMOD-Hub/issues-and-discussions) space.
+- Want to file an issue or request a feature? Please go [here](https://github.com/EMOD-Hub/issues-and-discussions).
 
 ## Disclaimer
 
